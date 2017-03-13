@@ -1,0 +1,201 @@
+<link rel="import" href="../shadowDOMElement/shadowDOMElement.html">
+
+<!--
+	svg-clock
+
+	Creates a manipulatable svg clock which is fully resizable and stylable.
+
+	## CSS Styling properties
+
+	| Property            | Description
+	|---------------------|------------------------------------------------|
+	| \-\-svg-clock-size  | The width and height of the clock              |
+	| \-\-svg-clock-color | The color of the border, hands, notches, etc.  |
+	-->
+<template id="svg-clock">
+	<style>
+		svg, g
+		{
+			width: var(--svg-clock-size, 300px);
+			height: var(--svg-clock-size, 300px);
+		}
+
+		.color
+		{
+			stroke: var(--svg-clock-color, black);
+		}
+
+		.notch
+		{
+			transform-origin: 0% 0%;
+		}
+
+		.hand
+		{
+			transform-origin: 100% 100%;
+			transition: transform 0.5s;
+		}
+	</style>
+
+	<svg id="svgRoot">
+		<circle class="color" fill="rgba(0,0,0,0)" stroke-width="5px" cx="50%" cy="50%" r="45%" />
+
+		<g id="notches">
+			<line id="twelveNotch" class="color notch" x1="50%" y1="5%" x2="50%" y2="15%" stroke-width="3px" />
+		</g>
+
+		<g id="hands">
+			<line id="minuteHand" class="color hand" x1="50%" y1="20%" x2="50%" y2="50%" stroke-linecap="round" stroke-width="5px" />
+			<line id="hourHand" class="color hand" x1="50%" y1="35%" x2="50%" y2="50%" stroke-linecap="round" stroke-width="7px" />
+		</g>
+	</svg>
+</template>
+
+<script type="text/javascript">
+(function() {
+	var currentDocument = document.currentScript.ownerDocument;
+
+	class SvgClock extends ShadowDOMElement
+	{
+		constructor()
+		{
+			super(currentDocument.querySelector("#svg-clock"));
+
+			this._minute = 0;
+			this._hour = 0;
+
+			let group = this.shadowRoot.querySelector("#notches");
+			let firstNotch = this.shadowRoot.querySelector("#twelveNotch");
+
+			// Creating the rest of the notches with javascript cause ain't nobody got time to code that by hand
+			for (let i = 1; i < 60; i++)
+			{
+				let rotation = i * Math.PI / 30.0;
+				let xPos = 50 + 45 * Math.sin(rotation);
+				let yPos = 50 - 45 * Math.cos(rotation);
+				let clonedLine = firstNotch.cloneNode(false);
+
+				clonedLine.setAttribute("x1", xPos + "%");
+				clonedLine.setAttribute("y1", yPos + "%");
+				clonedLine.setAttribute("x2", xPos + "%");
+
+				if (i % 5 == 0)
+				{
+					clonedLine.setAttribute("y2", (yPos + 10) + "%");
+				}
+				else
+				{
+					clonedLine.setAttribute("y2", (yPos + 5) + "%");
+				}
+
+				clonedLine.style.transform = `rotate(${rotation}rad)`;
+
+				group.append(clonedLine);
+			}
+
+			// Define animations for the hands to spin
+			let minuteHand = this.shadowRoot.querySelector("#minuteHand");
+			let hourHand = this.shadowRoot.querySelector("#hourHand");
+
+			let keyframes = { transform: [ "rotate(0deg)", "rotate(360deg)" ] };
+			let minuteTiming = { duration: 1000, iterations: Infinity };
+			let hourTiming = { duration: 12000, iterations: Infinity };
+
+			this._minuteAnimation = minuteHand.animate(keyframes, minuteTiming);
+			this._hourAnimation = hourHand.animate(keyframes, hourTiming);
+
+			this._minuteAnimation.cancel();
+			this._hourAnimation.cancel();
+		}
+
+		connectedCallback()
+		{
+			// Set hour & minute hands appropriately if attributes are set
+			if (this.hasAttribute("minute"))
+			{
+				this.minute = parseInt(this.getAttribute("minute"));
+			}
+			
+			if (this.hasAttribute("hour"))
+			{
+				this.hour = parseInt(this.getAttribute("hour"));
+			}
+
+			if (this.hasAttribute("animated"))
+			{
+				this._minuteAnimation.play();
+				this._hourAnimation.play();
+			}
+		}
+
+		get minute()
+		{
+			return this._minute;
+		}
+
+		// Setting minute updates the hour hand and minute hand
+		set minute(minutes)
+		{
+			this._minute = minutes;
+
+			this._updateMinuteHand();
+			this._updateHourHand();
+		}
+
+		get hour()
+		{
+			return this._hour;
+		}
+
+		// Setting hour updates the hour hand
+		set hour(hours)
+		{
+			this._hour = hours;
+
+			this._updateHourHand();
+		}
+
+		get animated()
+		{
+			return this.hasAttribute("animated");
+		}
+
+		set animated(boolValue)
+		{
+			if (boolValue)
+			{
+				this.setAttribute("animated", "");
+				this._minuteAnimation.play();
+				this._hourAnimation.play();
+			}
+			else
+			{
+				this.removeAttribute("animated");
+				this._minuteAnimation.cancel();
+				this._hourAnimation.cancel();
+
+				this._updateMinuteHand();
+				this._updateHourHand();
+			}
+		}
+
+		_updateMinuteHand()
+		{
+			let minuteHand = this.shadowRoot.querySelector("#minuteHand");
+			let rotation = this._minute * Math.PI / 30;
+
+			minuteHand.style.transform = `rotate(${rotation}rad)`;
+		}
+
+		_updateHourHand()
+		{
+			let hourHand = this.shadowRoot.querySelector("#hourHand");
+			let rotation = this._hour * Math.PI / 6 + this._minute * Math.PI / 360;
+
+			hourHand.style.transform = `rotate(${rotation}rad)`;
+		}
+	}
+
+	customElements.define("svg-clock", SvgClock);
+})();
+</script>

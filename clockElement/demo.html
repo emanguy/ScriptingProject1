@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>SVG Clock testing</title>
+
+		<link rel="import" href="clockElement.html">
+
+		<style>
+			#medium-clock
+			{
+				--svg-clock-size: 500px;
+				--svg-clock-color: blue;
+			}
+
+			#large-clock
+			{
+				--svg-clock-size: 750px;
+				--svg-clock-color: red;
+			}
+		</style>
+	</head>
+	<body>
+		<svg-clock></svg-clock>
+		<svg-clock hour="9" minute="30" id="medium-clock"></svg-clock>
+		<svg-clock hour="10" minute="15" id="large-clock"></svg-clock>
+
+		<hr>
+
+		<svg-clock animated></svg-clock>
+	</body>
+</html>

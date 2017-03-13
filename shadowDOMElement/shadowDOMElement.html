@@ -1,0 +1,12 @@
+<script type="text/javascript">
+class ShadowDOMElement extends HTMLElement
+{
+	constructor(template)
+	{
+		super();
+		let shadowRoot = this.attachShadow({mode: "open"}); // Create shadow DOM root
+		let clonedNode = template.content.cloneNode(true); // Clone the content of our template
+		shadowRoot.appendChild(clonedNode); // Attach the template content to the shadow DOM
+	}
+}
+</script>
