@@ -25,6 +25,11 @@
 			stroke: var(--svg-clock-color, black);
 		}
 
+		.color.fill
+		{
+			fill: var(--svg-clock-color, black);
+		}
+
 		.notch
 		{
 			transform-origin: 0% 0%;
@@ -34,6 +39,12 @@
 		{
 			transform-origin: 100% 100%;
 			transition: transform 0.5s;
+		}
+
+		text
+		{
+			text-anchor: middle;
+			alignment-baseline: middle;
 		}
 	</style>
 
@@ -47,6 +58,10 @@
 		<g id="hands">
 			<line id="minuteHand" class="color hand" x1="50%" y1="20%" x2="50%" y2="50%" stroke-linecap="round" stroke-width="5px" />
 			<line id="hourHand" class="color hand" x1="50%" y1="35%" x2="50%" y2="50%" stroke-linecap="round" stroke-width="7px" />
+		</g>
+
+		<g id="numbers">
+			<text id="firstNum" class="color fill" font-size="25pt" text-anchor="middle" x="50%" y="22%">12</text>
 		</g>
 	</svg>
 </template>
@@ -65,7 +80,9 @@
 			this._hour = 0;
 
 			let group = this.shadowRoot.querySelector("#notches");
+			let numberGroup = this.shadowRoot.querySelector("#numbers");
 			let firstNotch = this.shadowRoot.querySelector("#twelveNotch");
+			let firstNumber = this.shadowRoot.querySelector("#firstNum");
 
 			// Creating the rest of the notches with javascript cause ain't nobody got time to code that by hand
 			for (let i = 1; i < 60; i++)
@@ -82,6 +99,15 @@
 				if (i % 5 == 0)
 				{
 					clonedLine.setAttribute("y2", (yPos + 10) + "%");
+
+					let handXPos = 50 + 28 * Math.sin(rotation);
+					let handYPos = 50 - 28 * Math.cos(rotation);
+					let clonedNumber = firstNumber.cloneNode(false);
+					clonedNumber.innerHTML = "" + (i / 5);
+					clonedNumber.setAttribute("x", handXPos + "%");
+					clonedNumber.setAttribute("y", handYPos + "%");
+
+					numberGroup.appendChild(clonedNumber);
 				}
 				else
 				{
