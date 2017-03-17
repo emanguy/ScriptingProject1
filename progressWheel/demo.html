@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Progress wheel test</title>
+		<link rel="import" href="progressWheel.html">
+
+		<style>
+			#big
+			{
+				width: 200px;
+				height: 200px;
+
+				--progress-wheel-background: black;
+				--progress-wheel-color: red;
+			}
+
+			#bigger
+			{
+				width: 300px;
+				height: 300px;
+
+				--progress-wheel-color: blue;
+			}
+		</style>
+	</head>
+
+	<body>
+		<progress-wheel>0/1</progress-wheel>
+		<progress-wheel id="big" value="30" max-value="40">30/40</progress-wheel>
+		<progress-wheel id="bigger" max-value="100">Random</progress-wheel>
+
+		<script type="text/javascript">
+var biggerWheel = document.querySelector("#bigger");
+
+window.setInterval(() => { biggerWheel.value = Math.ceil( Math.random() * 100 ); }, 2000);
+		</script>
+	</body>
+</html>
