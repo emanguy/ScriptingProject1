@@ -1,0 +1,186 @@
+<link rel="import" href="../shadowDOMElement/shadowDOMElement.html">
+<!--
+	page-switcher
+
+	Switches displayed child element based on the "page" property. You can set "selector-attribute"
+	to choose a (unique) CSS attribute to choose the page by.
+	
+	Unless "selector-attribute" is set, you must set the visible page as the index of the child node
+	you want to display.
+
+	Setting the "animated-transition" attribute will cause a quick fade-out, fade-in animation to play
+	on the content during a page switch.
+
+	If child elements define "enteredCallback" or "exitedCallback", they will be called at the appropriate
+	time during page transition.
+-->
+
+<template id="page-switcher">
+	<style>
+		:host
+		{
+			display: block;
+			contain: content;
+		}
+
+		/* Child elements not marked as the chosen page are hidden */
+		::slotted( :not(.chosenPage))
+		{
+			display: none !important;
+		}
+	</style>
+
+	<slot id="childNodes"></slot>
+
+</template>
+
+<script type="text/javascript">
+(function() {
+	var thisDocument = document.currentScript.ownerDocument;
+
+	class PageSwitcher extends ShadowDOMElement
+	{
+		constructor()
+		{
+			// Extend element and attach shadow dom
+			super(thisDocument.querySelector("#page-switcher"));
+			this._slot = this.shadowRoot.querySelector("#childNodes");
+			this._selectorAttribute = null;
+			this._page = 0;
+
+			this._hideKeyframes = { opacity: [1.0, 0.0] };
+			this._showKeyframes = { opacity: [0.0, 1.0] };
+		}
+
+		connectedCallback()
+		{
+			if (this.hasAttribute("selector-attribute"))
+			{
+				this._selectorAttribute = this.getAttribute("selector-attribute");	
+			}
+
+			if (this.hasAttribute("page") && this._slot.assignedNodes().length)
+			{
+				this._page = this.getAttribute("page");
+				let selectedChild = this._getSelectedChild(this._page);
+				selectedChild.classList.add("chosenPage");
+			}
+		}
+
+		get selectorAttribute()
+		{
+			return this._selectorAttribute;
+		}
+
+		get page()
+		{
+			return this._page;
+		}
+
+		set page(newSelector)
+		{
+			if (this.hasAttribute("animated-transition"))
+			{
+				this._animatedPageTransition(newSelector);
+			}
+			else
+			{
+				this._pageTransition(newSelector);
+			}
+		}
+
+		// Switch pages non-animatedly
+		_pageTransition(newSelector)
+		{
+			if (this._page)
+			{
+				let chosenPage = this._getSelectedChild(this._page);
+				chosenPage.classList.remove("chosenPage");
+
+				if (chosenPage.exitedCallback)
+				{
+					chosenPage.exitedCallback();
+				}
+			}
+			let newPage = this._getSelectedChild(newSelector);
+			newPage.classList.add("chosenPage");
+
+			this._page = newSelector;
+
+			if (newPage.enteredCallback)
+			{
+				newPage.enteredCallback();
+			}
+		}
+
+		// Switch pages animatedly
+		_animatedPageTransition(newSelector)
+		{
+			let newPage = this._getSelectedChild(newSelector);
+			
+			let revealNewPage = () =>
+			{
+				newPage.classList.add("chosenPage");
+				let showAnimation = newPage.animate(this._showKeyframes, 250);
+				showAnimation.onfinish = () => {
+					if (newPage.enteredCallback)
+					{
+						newPage.enteredCallback();
+					}
+				}
+			}
+
+			// If a page is already selected we need to fade it out first
+			if (this._page) 
+			{ 
+				let chosenPage = this._getSelectedChild(this._page); 
+
+				// Start hiding animation
+				let hideAnimation = chosenPage.animate(this._hideKeyframes, 250);
+				hideAnimation.onfinish = () => {
+					// On completion, set classes accordingly and start next animation
+					chosenPage.classList.remove("chosenPage");
+
+					if (chosenPage.exitedCallback)
+					{
+						chosenPage.exitedCallback();
+					}
+
+					revealNewPage();
+				}; 
+			}
+			else
+			{
+				revealNewPage();
+			}
+
+			// Regardless of what animation happens, update the page
+			this._page = newSelector;
+		}
+
+		// Based on the selected page and attribute to select, return the matching selected child
+		_getSelectedChild(selection)
+		{
+			let childNodes = this._slot.assignedNodes();
+
+			if (this.selectorAttribute)
+			{
+				for (let index = 0; index < childNodes.length; index++)
+				{
+					if (childNodes[index].hasAttribute && childNodes[index].hasAttribute(this.selectorAttribute) && 
+							childNodes[index].getAttribute(this.selectorAttribute) == selection)
+					{
+						return childNodes[index];
+					}
+				}
+			}
+			else
+			{
+				return childNodes[selection];
+			}
+		}
+	}
+
+	customElements.define("page-switcher", PageSwitcher);
+})();
+</script>

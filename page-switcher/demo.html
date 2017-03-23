@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test page switcher</title>
+
+		<link rel="import" href="page-switcher.html">
+		<link rel="import" href="../shared-styles/shared-styles.html">
+	</head>
+
+	<body>
+		<page-switcher id="switcheroo" page="page-1" selector-attribute="pagename">
+			<p pagename="page-1">1</p>
+			<p pagename="page-2">2</p>
+			<p pagename="page-3">3</p>
+			<transition-callback name="fourth page" pagename="page-4"><p>Hello world</p></transition-callback>
+		</page-switcher>
+		
+		<page-switcher id="animatedSwitcher" page="page-1" selector-attribute="pagename" animated-transition>
+			<p pagename="page-1">1</p>
+			<p pagename="page-2">2</p>
+			<p pagename="page-3">3</p>
+			<transition-callback name="animated fourth page" pagename="page-4"><p>Hello world</p></transition-callback>
+		</page-switcher>
+
+		<button onclick="selectPage(1)">Page 1</button>
+		<button onclick="selectPage(2)">Page 2</button>
+		<button onclick="selectPage(3)">Page 3</button>
+		<button onclick="selectPage(4)">Page 4 (see JS console)</button>
+
+		<script type="text/javascript">
+			var switcher = document.querySelector("#switcheroo");
+			var animatedSwitcher = document.querySelector("#animatedSwitcher");
+
+			function selectPage(pageNum)
+			{
+				switcher.page = "page-" + pageNum;
+				animatedSwitcher.page = "page-" + pageNum;
+			}
+
+			class TransitionCallbackElement extends HTMLElement
+			{
+				constructor()
+				{
+					super();
+				}
+
+				connectedCallback()
+				{
+					this._name = this.getAttribute("name");
+				}
+
+				enteredCallback()
+				{
+					console.log("Entered " + this._name);
+				}
+
+				exitedCallback()
+				{
+					console.log("Exited " + this._name);
+				}
+			}
+
+			customElements.define("transition-callback", TransitionCallbackElement);
+		</script>
+	</body>
+</html>
