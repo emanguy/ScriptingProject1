@@ -1,0 +1,17 @@
+<link rel="import" href="../shadowDOMElement/shadowDOMElement.html">
+
+<script type="text/javascript">
+class Page extends ShadowDOMElement
+{
+	constructor(template)
+	{
+		super(template);
+	}
+
+	switchPageTo(target)
+	{
+		let pageSwitchEvent = new CustomEvent("page-switch", { detail: target });
+		this.dispatchEvent(pageSwitchEvent);
+	}
+}
+</script>

@@ -1,0 +1,79 @@
+<link rel="import" href="../svg-clock/svg-clock.html">
+<link rel="import" href="../page/page.html">
+
+<template id="main-page">
+	<style>
+		@import "../shared-styles/shared-styles.css";
+
+		:host
+		{
+			display: flex;
+			contain: content;
+			width: 100%;
+			height: 100%;
+			flex-direction: column;
+			justify-content: space-around;
+			align-items: center;
+			color: white;
+		}
+
+		svg-clock
+		{
+			--svg-clock-color: white;
+			--svg-clock-size: 500px;
+		}
+
+		div
+		{
+			display: flex;
+			flex-direction: column;
+		}
+
+		button
+		{
+			margin-bottom: 10px;
+		}
+	</style>
+
+	<svg-clock animated></svg-clock>
+	<div>
+		<button id="game-start">Start Game</button>
+		<button id="level-select">Level Select</button>
+	</div>
+</template>
+
+<script type="text/javascript">
+(function() {
+	var thisDocument = document.currentScript.ownerDocument;
+
+	class MainPage extends Page
+	{
+		constructor()
+		{
+			super(thisDocument.querySelector("#main-page"));
+
+			this._clock = this.shadowRoot.querySelector("svg-clock");
+			this._startButton = this.shadowRoot.querySelector("#game-start");
+			this._selectButton = this.shadowRoot.querySelector("#level-select");
+		}
+
+		connectedCallback()
+		{
+			this._startButton.addEventListener("click", () => this.switchPageTo("level-1"));
+			this._selectButton.addEventListener("click", () => this.switchPageTo("level-select"));
+		}
+
+		enteredCallback()
+		{
+			this._clock.animated = true;
+		}
+
+		exitedCallback()
+		{
+			this._clock.animated = false;
+		}
+	}
+
+	customElements.define("main-page", MainPage);
+})();
+</script>

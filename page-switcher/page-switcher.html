@@ -61,9 +61,11 @@
 
 			if (this.hasAttribute("page") && this._slot.assignedNodes().length)
 			{
-				this._page = this.getAttribute("page");
-				let selectedChild = this._getSelectedChild(this._page);
-				selectedChild.classList.add("chosenPage");
+				window.addEventListener("DOMContentLoaded", () => {
+					this._page = this.getAttribute("page");
+					let selectedChild = this._getSelectedChild(this._page);
+					selectedChild.classList.add("chosenPage");
+				});
 			}
 		}
 

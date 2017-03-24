@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>timR</title>
+
+		<!-- Import styles -->
+		<link rel="stylesheet" type="text/css" href="index-style.css">
+
+		<!-- Import code for custom elements -->
+		<link rel="import" href="page-switcher/page-switcher.html">
+		<link rel="import" href="main-page/main-page.html">
+
+	</head>
+
+	<body>
+		<div class="viewportContainer">
+			<main class="fillspace">
+				<page-switcher id="contentSwitch" page="main" selector-attribute="page-name" animated-transition>
+					<main-page page-name="main"></main-page>
+				</page-switcher>
+			</main>
+			<footer>
+				<h3 class="logo">timR</h3>
+				<div class="fillspace"></div>
+				<button>Teacher Login</button>
+			</footer>
+		</div>
+	</body>
+</html>
