@@ -50,6 +50,11 @@
 
 			this._hideKeyframes = { opacity: [1.0, 0.0] };
 			this._showKeyframes = { opacity: [0.0, 1.0] };
+
+			window.addEventListener("DOMContentLoaded", () => {
+				let selectedChild = this._getSelectedChild(this.page);
+				selectedChild.classList.add("chosenPage");
+			});
 		}
 
 		connectedCallback()
@@ -61,11 +66,7 @@
 
 			if (this.hasAttribute("page") && this._slot.assignedNodes().length)
 			{
-				window.addEventListener("DOMContentLoaded", () => {
-					this._page = this.getAttribute("page");
-					let selectedChild = this._getSelectedChild(this._page);
-					selectedChild.classList.add("chosenPage");
-				});
+				this._page = this.getAttribute("page");
 			}
 		}
 
