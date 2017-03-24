@@ -51,10 +51,10 @@
 			this._hideKeyframes = { opacity: [1.0, 0.0] };
 			this._showKeyframes = { opacity: [0.0, 1.0] };
 
-			window.addEventListener("DOMContentLoaded", () => {
+			window.onload = () => {
 				let selectedChild = this._getSelectedChild(this.page);
 				selectedChild.classList.add("chosenPage");
-			});
+			};
 		}
 
 		connectedCallback()
