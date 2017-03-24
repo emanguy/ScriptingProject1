@@ -26,7 +26,7 @@ div.viewportContainer
 
 main
 {
-	background-color: rgb(0, 160, 45);
+	background-color: #324730;
 	color: white;
 }
 
@@ -40,7 +40,7 @@ footer
 {
 	display: flex;
 	align-items: center;
-	background-color: rgb(112, 0, 0);
+	background-color: #422910;
 	color: white;
 	height: 100px;
 	padding-left: 5%;
