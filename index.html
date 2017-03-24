@@ -1,0 +1,547 @@
+<!DOCTYPE html><html><head>
+		<title>timR</title>
+
+		<!-- Import styles -->
+		<link rel="stylesheet" type="text/css" href="index-style.css">
+
+		<!-- Import code for custom elements -->
+		</head>
+
+	<body><div hidden="" by-polymer-bundler=""><script type="text/javascript">
+class ShadowDOMElement extends HTMLElement
+{
+	constructor(template)
+	{
+		super();
+		let shadowRoot = this.attachShadow({mode: "open"}); // Create shadow DOM root
+		let clonedNode = template.content.cloneNode(true); // Clone the content of our template
+		shadowRoot.appendChild(clonedNode); // Attach the template content to the shadow DOM
+	}
+}
+</script>
+<!--
+	page-switcher
+
+	Switches displayed child element based on the "page" property. You can set "selector-attribute"
+	to choose a (unique) CSS attribute to choose the page by.
+	
+	Unless "selector-attribute" is set, you must set the visible page as the index of the child node
+	you want to display.
+
+	Setting the "animated-transition" attribute will cause a quick fade-out, fade-in animation to play
+	on the content during a page switch.
+
+	If child elements define "enteredCallback" or "exitedCallback", they will be called at the appropriate
+	time during page transition.
+-->
+
+<template id="page-switcher">
+	<style>
+		:host
+		{
+			display: block;
+			contain: content;
+		}
+
+		/* Child elements not marked as the chosen page are hidden */
+		::slotted( :not(.chosenPage))
+		{
+			display: none !important;
+		}
+	</style>
+
+	<slot id="childNodes"></slot>
+
+</template>
+
+<script type="text/javascript">
+(function() {
+	var thisDocument = document.currentScript.ownerDocument;
+
+	class PageSwitcher extends ShadowDOMElement
+	{
+		constructor()
+		{
+			// Extend element and attach shadow dom
+			super(thisDocument.querySelector("#page-switcher"));
+			this._slot = this.shadowRoot.querySelector("#childNodes");
+			this._selectorAttribute = null;
+			this._page = 0;
+
+			this._hideKeyframes = { opacity: [1.0, 0.0] };
+			this._showKeyframes = { opacity: [0.0, 1.0] };
+
+			window.onload = () => {
+				let selectedChild = this._getSelectedChild(this.page);
+				selectedChild.classList.add("chosenPage");
+			};
+		}
+
+		connectedCallback()
+		{
+			if (this.hasAttribute("selector-attribute"))
+			{
+				this._selectorAttribute = this.getAttribute("selector-attribute");	
+			}
+
+			if (this.hasAttribute("page") && this._slot.assignedNodes().length)
+			{
+				this._page = this.getAttribute("page");
+			}
+		}
+
+		get selectorAttribute()
+		{
+			return this._selectorAttribute;
+		}
+
+		get page()
+		{
+			return this._page;
+		}
+
+		set page(newSelector)
+		{
+			if (this.hasAttribute("animated-transition"))
+			{
+				this._animatedPageTransition(newSelector);
+			}
+			else
+			{
+				this._pageTransition(newSelector);
+			}
+		}
+
+		// Switch pages non-animatedly
+		_pageTransition(newSelector)
+		{
+			if (this._page)
+			{
+				let chosenPage = this._getSelectedChild(this._page);
+				chosenPage.classList.remove("chosenPage");
+
+				if (chosenPage.exitedCallback)
+				{
+					chosenPage.exitedCallback();
+				}
+			}
+			let newPage = this._getSelectedChild(newSelector);
+			newPage.classList.add("chosenPage");
+
+			this._page = newSelector;
+
+			if (newPage.enteredCallback)
+			{
+				newPage.enteredCallback();
+			}
+		}
+
+		// Switch pages animatedly
+		_animatedPageTransition(newSelector)
+		{
+			let newPage = this._getSelectedChild(newSelector);
+			
+			let revealNewPage = () =>
+			{
+				newPage.classList.add("chosenPage");
+				let showAnimation = newPage.animate(this._showKeyframes, 250);
+				showAnimation.onfinish = () => {
+					if (newPage.enteredCallback)
+					{
+						newPage.enteredCallback();
+					}
+				}
+			}
+
+			// If a page is already selected we need to fade it out first
+			if (this._page) 
+			{ 
+				let chosenPage = this._getSelectedChild(this._page); 
+
+				// Start hiding animation
+				let hideAnimation = chosenPage.animate(this._hideKeyframes, 250);
+				hideAnimation.onfinish = () => {
+					// On completion, set classes accordingly and start next animation
+					chosenPage.classList.remove("chosenPage");
+
+					if (chosenPage.exitedCallback)
+					{
+						chosenPage.exitedCallback();
+					}
+
+					revealNewPage();
+				}; 
+			}
+			else
+			{
+				revealNewPage();
+			}
+
+			// Regardless of what animation happens, update the page
+			this._page = newSelector;
+		}
+
+		// Based on the selected page and attribute to select, return the matching selected child
+		_getSelectedChild(selection)
+		{
+			let childNodes = this._slot.assignedNodes();
+
+			if (this.selectorAttribute)
+			{
+				for (let index = 0; index < childNodes.length; index++)
+				{
+					if (childNodes[index].hasAttribute && childNodes[index].hasAttribute(this.selectorAttribute) && 
+							childNodes[index].getAttribute(this.selectorAttribute) == selection)
+					{
+						return childNodes[index];
+					}
+				}
+			}
+			else
+			{
+				return childNodes[selection];
+			}
+		}
+	}
+
+	customElements.define("page-switcher", PageSwitcher);
+})();
+</script>
+<!--
+	svg-clock
+
+	Creates a manipulatable svg clock which is fully resizable and stylable.
+
+	## CSS Styling properties
+
+	| Property            | Description
+	|---------------------|------------------------------------------------|
+	| \-\-svg-clock-size  | The width and height of the clock              |
+	| \-\-svg-clock-color | The color of the border, hands, notches, etc.  |
+	-->
+<template id="svg-clock">
+	<style>
+		:host
+		{
+			display: inline-block;
+		}
+
+		svg, g
+		{
+			width: var(--svg-clock-size, 300px);
+			height: var(--svg-clock-size, 300px);
+		}
+
+		.color
+		{
+			stroke: var(--svg-clock-color, black);
+		}
+
+		.color.fill
+		{
+			fill: var(--svg-clock-color, black);
+		}
+
+		.notch
+		{
+			transform-origin: 0% 0%;
+		}
+
+		.hand
+		{
+			transform-origin: 100% 100%;
+			transition: transform 0.5s;
+		}
+
+		text
+		{
+			text-anchor: middle;
+			alignment-baseline: middle;
+		}
+	</style>
+
+	<svg id="svgRoot">
+		<circle class="color" fill="rgba(0,0,0,0)" stroke-width="5px" cx="50%" cy="50%" r="45%"></circle>
+
+		<g id="notches">
+			<line id="twelveNotch" class="color notch" x1="50%" y1="5%" x2="50%" y2="15%" stroke-width="3px"></line>
+		</g>
+
+		<g id="hands">
+			<line id="minuteHand" class="color hand" x1="50%" y1="20%" x2="50%" y2="50%" stroke-linecap="round" stroke-width="5px"></line>
+			<line id="hourHand" class="color hand" x1="50%" y1="35%" x2="50%" y2="50%" stroke-linecap="round" stroke-width="7px"></line>
+		</g>
+
+		<g id="numbers">
+			<text id="firstNum" class="color fill" font-size="25pt" text-anchor="middle" x="50%" y="22%">12</text>
+		</g>
+	</svg>
+</template>
+
+<script type="text/javascript">
+(function() {
+	var currentDocument = document.currentScript.ownerDocument;
+
+	class SvgClock extends ShadowDOMElement
+	{
+		constructor()
+		{
+			super(currentDocument.querySelector("#svg-clock"));
+
+			this._minute = 0;
+			this._hour = 0;
+
+			let group = this.shadowRoot.querySelector("#notches");
+			let numberGroup = this.shadowRoot.querySelector("#numbers");
+			let firstNotch = this.shadowRoot.querySelector("#twelveNotch");
+			let firstNumber = this.shadowRoot.querySelector("#firstNum");
+
+			// Creating the rest of the notches with javascript cause ain't nobody got time to code that by hand
+			for (let i = 1; i < 60; i++)
+			{
+				let rotation = i * Math.PI / 30.0;
+				let xPos = 50 + 45 * Math.sin(rotation);
+				let yPos = 50 - 45 * Math.cos(rotation);
+				let clonedLine = firstNotch.cloneNode(false);
+
+				clonedLine.setAttribute("x1", xPos + "%");
+				clonedLine.setAttribute("y1", yPos + "%");
+				clonedLine.setAttribute("x2", xPos + "%");
+
+				if (i % 5 == 0)
+				{
+					clonedLine.setAttribute("y2", (yPos + 10) + "%");
+
+					let handXPos = 50 + 28 * Math.sin(rotation);
+					let handYPos = 50 - 28 * Math.cos(rotation);
+					let clonedNumber = firstNumber.cloneNode(false);
+					clonedNumber.innerHTML = "" + (i / 5);
+					clonedNumber.setAttribute("x", handXPos + "%");
+					clonedNumber.setAttribute("y", handYPos + "%");
+
+					numberGroup.appendChild(clonedNumber);
+				}
+				else
+				{
+					clonedLine.setAttribute("y2", (yPos + 5) + "%");
+				}
+
+				clonedLine.style.transform = `rotate(${rotation}rad)`;
+
+				group.append(clonedLine);
+			}
+
+			// Define animations for the hands to spin
+			let minuteHand = this.shadowRoot.querySelector("#minuteHand");
+			let hourHand = this.shadowRoot.querySelector("#hourHand");
+
+			let keyframes = { transform: [ "rotate(0deg)", "rotate(360deg)" ] };
+			let minuteTiming = { duration: 1000, iterations: Infinity };
+			let hourTiming = { duration: 12000, iterations: Infinity };
+
+			this._minuteAnimation = minuteHand.animate(keyframes, minuteTiming);
+			this._hourAnimation = hourHand.animate(keyframes, hourTiming);
+
+			this._minuteAnimation.cancel();
+			this._hourAnimation.cancel();
+		}
+
+		connectedCallback()
+		{
+			// Set hour & minute hands appropriately if attributes are set
+			if (this.hasAttribute("minute"))
+			{
+				this.minute = parseInt(this.getAttribute("minute"));
+			}
+			
+			if (this.hasAttribute("hour"))
+			{
+				this.hour = parseInt(this.getAttribute("hour"));
+			}
+
+			if (this.hasAttribute("animated"))
+			{
+				this._minuteAnimation.play();
+				this._hourAnimation.play();
+			}
+		}
+
+		get minute()
+		{
+			return this._minute;
+		}
+
+		// Setting minute updates the hour hand and minute hand
+		set minute(minutes)
+		{
+			this._minute = minutes;
+
+			this._updateMinuteHand();
+			this._updateHourHand();
+		}
+
+		get hour()
+		{
+			return this._hour;
+		}
+
+		// Setting hour updates the hour hand
+		set hour(hours)
+		{
+			this._hour = hours;
+
+			this._updateHourHand();
+		}
+
+		get animated()
+		{
+			return this.hasAttribute("animated");
+		}
+
+		set animated(boolValue)
+		{
+			if (boolValue)
+			{
+				this.setAttribute("animated", "");
+				this._minuteAnimation.play();
+				this._hourAnimation.play();
+			}
+			else
+			{
+				this.removeAttribute("animated");
+				this._minuteAnimation.cancel();
+				this._hourAnimation.cancel();
+
+				this._updateMinuteHand();
+				this._updateHourHand();
+			}
+		}
+
+		_updateMinuteHand()
+		{
+			let minuteHand = this.shadowRoot.querySelector("#minuteHand");
+			let rotation = this._minute * Math.PI / 30;
+
+			minuteHand.style.transform = `rotate(${rotation}rad)`;
+		}
+
+		_updateHourHand()
+		{
+			let hourHand = this.shadowRoot.querySelector("#hourHand");
+			let rotation = this._hour * Math.PI / 6 + this._minute * Math.PI / 360;
+
+			hourHand.style.transform = `rotate(${rotation}rad)`;
+		}
+	}
+
+	customElements.define("svg-clock", SvgClock);
+})();
+</script>
+<script type="text/javascript">
+class Page extends ShadowDOMElement
+{
+	constructor(template)
+	{
+		super(template);
+	}
+
+	switchPageTo(target)
+	{
+		let pageSwitchEvent = new CustomEvent("page-switch", { detail: target });
+		this.dispatchEvent(pageSwitchEvent);
+	}
+}
+</script>
+<template id="main-page">
+	<style>
+		/* This operates on the URL not the file system */
+		@import url("shared-styles/shared-styles.css");
+
+		:host
+		{
+			display: flex;
+			contain: content;
+			width: 100%;
+			height: 100%;
+			flex-direction: column;
+			justify-content: space-around;
+			align-items: center;
+			color: white;
+		}
+
+		svg-clock
+		{
+			--svg-clock-color: white;
+			--svg-clock-size: 500px;
+		}
+
+		div
+		{
+			display: flex;
+			flex-direction: column;
+		}
+
+		button
+		{
+			margin-bottom: 10px;
+		}
+	</style>
+
+	<svg-clock animated=""></svg-clock>
+	<div>
+		<button id="game-start">Start Game</button>
+		<button id="level-select">Level Select</button>
+	</div>
+</template>
+
+<script type="text/javascript">
+(function() {
+	var thisDocument = document.currentScript.ownerDocument;
+
+	class MainPage extends Page
+	{
+		constructor()
+		{
+			super(thisDocument.querySelector("#main-page"));
+
+			this._clock = this.shadowRoot.querySelector("svg-clock");
+			this._startButton = this.shadowRoot.querySelector("#game-start");
+			this._selectButton = this.shadowRoot.querySelector("#level-select");
+		}
+
+		connectedCallback()
+		{
+			this._startButton.addEventListener("click", () => this.switchPageTo("level-1"));
+			this._selectButton.addEventListener("click", () => this.switchPageTo("level-select"));
+		}
+
+		enteredCallback()
+		{
+			this._clock.animated = true;
+		}
+
+		exitedCallback()
+		{
+			this._clock.animated = false;
+		}
+	}
+
+	customElements.define("main-page", MainPage);
+})();
+</script>
+</div>
+		<div class="viewportContainer">
+			<main class="fillspace">
+				<page-switcher id="contentSwitch" page="main" selector-attribute="page-name" animated-transition="">
+					<main-page page-name="main"></main-page>
+				</page-switcher>
+			</main>
+			<footer>
+				<h3 class="logo">timR</h3>
+				<div class="fillspace"></div>
+				<button>Teacher Login</button>
+			</footer>
+		</div>
+	
+
+</body></html>
