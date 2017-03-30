@@ -1,0 +1,101 @@
+<link rel="import" href="../shadowDOMElement/shadowDOMElement.html">
+
+<!--
+	overlay-container
+	
+	This element provides a backdrop and enclosing container for dialog boxes.
+	
+	Providing the "background-dismiss" attribute will cause the overlay to dismiss
+	the dialog when the backdrop is clicked.
+	
+	The child of this container should extend "overlay" to interface properly with this.
+	
+-->
+<template id="overlay-container">
+	<style>
+		:host
+		{
+			display: none;
+			position: fixed;
+			contain: content;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(100, 100, 100, 0.3);
+			align-items: center;
+			justify-content: center;
+		}
+
+		:host([revealed])
+		{
+			display: flex;
+		}
+	</style>
+
+		<slot></slot>
+</template>
+
+<script type="text/javascript">
+(function() {
+
+	var thisDocument = document.currentScript.ownerDocument;
+
+	class OverlayContainer extends ShadowDOMElement
+	{
+		constructor()
+		{
+			super(thisDocument.querySelector("#overlay-container"));
+
+			this._slot = this.shadowRoot.querySelector("slot");
+			this._dismissAnimKeyframes = {
+				opacity: [1.0, 0.0]
+			};
+			this._dismissAnimTiming = 250;
+		}
+
+		connectedCallback()
+		{
+			// If the backdrop is clicked and this has a background-dismiss attribute, dismiss the dialog
+			this.addEventListener("click", (e) =>
+			{
+				if (e.target == this && this.hasAttribute("background-dismiss"))
+				{
+					this.dismiss();
+				}
+			});
+
+			this._slot.addEventListener("request-dismiss", () => this.dismiss());
+		}
+
+		// Reveal the overlay container and call reveal() on the enclosed overlay
+		reveal()
+		{
+			if (!this.hasAttribute("revealed"))
+			{
+				this.setAttribute("revealed", "");
+
+				this._slot.assignedNodes().forEach((item) => {
+					if (item.isOverlay)
+					{
+						item.reveal();
+					}
+				});
+			}
+
+		}
+
+		// Do an opacity animation then hide self
+		dismiss()
+		{
+			if (this.hasAttribute("revealed"))
+			{
+				let animation = this.animate(this._dismissAnimKeyframes, this._dismissAnimTiming);
+				animation.onfinish = () => this.removeAttribute("revealed");
+			}
+		}
+	}
+
+	customElements.define("overlay-container", OverlayContainer);
+})();
+</script>

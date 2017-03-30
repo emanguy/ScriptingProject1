@@ -1,6 +1,10 @@
 <link rel="import" href="../shadowDOMElement/shadowDOMElement.html">
 
 <script type="text/javascript">
+
+/*
+ * Extending this class will allow you to call the switchPageTo() method to imperatively switch pages in a page-switcher.
+ */
 class Page extends ShadowDOMElement
 {
 	constructor(template)
@@ -10,7 +14,7 @@ class Page extends ShadowDOMElement
 
 	switchPageTo(target)
 	{
-		let pageSwitchEvent = new CustomEvent("page-switch", { detail: target });
+		let pageSwitchEvent = new CustomEvent("page-switch", { detail: target, bubbles: true});
 		this.dispatchEvent(pageSwitchEvent);
 	}
 }

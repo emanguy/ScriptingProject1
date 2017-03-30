@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Overlay test</title>
+
+		<link rel="import" href="overlay-container.html">
+		<link rel="import" href="overlay.html">
+	</head>
+
+	<body>
+		<button id="showOverlay">Show overlay</button>
+		<button id="noDismissButton">Show overlay without click-background-for-dismiss</button>
+
+		<!-- Add surrounding div to make sure the overlay doesn't affect its bounding box -->
+		<div style="width: 500px; height: 500px; border: 2px solid gray">
+			<overlay-container id="overlayContain" background-dismiss>
+				<my-overlay></my-overlay>
+			</overlay-container>
+		</div>
+
+		<overlay-container id="noDismiss">
+			<my-overlay></my-overlay>
+		</overlay-container>
+
+		<template id="myOverlay">
+			<style>
+			:host
+			{
+				display: block;
+				width: 75%;
+				height: 75%;
+				contain: content;
+				background-color: blue;
+			}
+			</style>
+
+			<button>Dismiss overlay</button>
+		</template>
+
+		<script type="text/javascript">
+
+var showButton = document.querySelector("#showOverlay");
+var noDismissButton = document.querySelector("#noDismissButton");
+var overlayContain = document.querySelector("#overlayContain");
+var noDismissOverlayContain = document.querySelector("#noDismiss");
+
+showButton.addEventListener("click", () => overlayContain.reveal());
+noDismissButton.addEventListener("click", () => noDismissOverlayContain.reveal());
+
+class MyOverlay extends OverlayElement
+{
+	constructor()
+	{
+		super(document.querySelector("#myOverlay"));
+	}
+
+	connectedCallback()
+	{
+		this.shadowRoot.querySelector("button").addEventListener("click", () => this.dismiss());
+	}
+}
+
+customElements.define("my-overlay", MyOverlay);
+		</script>
+	</body>
+</html>

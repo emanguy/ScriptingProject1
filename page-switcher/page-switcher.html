@@ -13,6 +13,8 @@
 
 	If child elements define "enteredCallback" or "exitedCallback", they will be called at the appropriate
 	time during page transition.
+
+	If you want this page switcher to ignore a "page-switch" event, add the "ignore-switch-request" attribute.
 -->
 
 <template id="page-switcher">
@@ -68,6 +70,11 @@
 			{
 				this._page = this.getAttribute("page");
 			}
+
+			if (!this.hasAttribute("ignore-switch-request"))
+			{
+				this._slot.addEventListener("page-switch", this._handleSwitchRequest.bind(this));
+			}
 		}
 
 		get selectorAttribute()
@@ -78,6 +85,26 @@
 		get page()
 		{
 			return this._page;
+		}
+
+		get ignoreSwitchRequest()
+		{
+			return this.hasAttribute("ignore-switch-request");
+		}
+
+		set ignoreSwitchRequest(enabled)
+		{
+			this._slot.removeEventListener("page-switch", this._handleSwitchRequest.bind(this));
+
+			if (enabled)
+			{
+				this.setAttribute("ignore-switch-request", "");
+			}
+			else
+			{
+				this.removeAttribute("ignore-switch-request");
+				this._slot.addEventListener("page-switch", this._handleSwitchRequest.bind(this));
+			}
 		}
 
 		set page(newSelector)
@@ -181,6 +208,12 @@
 			{
 				return childNodes[selection];
 			}
+		}
+
+		_handleSwitchRequest(event)
+		{
+			event.stopPropagation();
+			this.page = event.detail;
 		}
 	}
 

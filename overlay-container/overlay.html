@@ -1,0 +1,41 @@
+<link rel="import" href="../shadowDOMElement/shadowDOMElement.html">
+
+<script type="text/javascript">
+	/*
+ 	 * The overlay element inside an overlay-container should inherit this class.
+	 */
+	class OverlayElement extends ShadowDOMElement
+	{
+		constructor(template)
+		{
+			super(template);
+
+			this._revealKeyframes = [
+				{ transform: "scale(0.2, 0.2)" },
+				{ transform: "scale(1.0, 0.6)", offset: 0.5 },
+				{ transform: "scale(1.0, 1.0)" }
+			];
+			this._revealTiming = {
+				duration: 375,
+				easing: "ease"
+			};
+		}
+
+		// So the overlayContainer can detect this
+		get isOverlay()
+		{
+			return true;
+		}
+
+		reveal()
+		{
+			this.animate(this._revealKeyframes, this._revealTiming);
+		}
+
+		dismiss()
+		{
+			let event = new CustomEvent("request-dismiss", {bubbles: true});
+			this.dispatchEvent(event);
+		}
+	}
+</script>
