@@ -2,6 +2,10 @@
 
 _[Youtube Video](https://youtu.be/-2rDyiZGWP8)_
 
+_Evan Rittenhouse - eritte2 at umbc dot edu - Lead programmer/designer_
+
+**You can access timR by opening index.html.**
+
 timR is a modular single page webapp that allows children to practice reading analog clocks. It defines many custom HTML elements and reuses them all over the place. This modularity makes the site easily modifiable, updatable, and readable. All of the code in this project is written by Evan Rittenhouse and the only external stuff that was added are the font files in `shared-styles/fonts/`.
 
 ## Bundling timR
@@ -70,7 +74,7 @@ _Note: Due to the nature of HTML imports and Shadow DOM within custom elements, 
    * page.html - The parent class for pages, `Page`. Provides a helper function which allows pages to notify the parent `page-switcher` that they should navigate to another page.
  * progress-wheel/
    * demo.html - My testing area for the progress wheel.
-   * progress-wheel.html - Defines the `progress-wheel` element and value/maxValue properties which can be used to change how filled the wheel is.
+   * progress-wheel.html - Defines the `progress-wheel` element and value/maxValue properties which can be used to change how filled the wheel is. I made this using inspiration from [this progress wheel implementation](https://medium.com/@andsens/radial-progress-indicator-using-css-a917b80c43f9).
  * shadowDOMElement/shadowDOMElement.html - This is a helper class which helped me cut down on boilerplate for a lot of other elements I defined.
  * shared-styles/
    * fonts/ - Contains the .ttf files for the "Pacifico" and "Catamaran" fonts I use throughout the site.
