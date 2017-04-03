@@ -631,6 +631,13 @@ class Page extends ShadowDOMElement
         connectedCallback()
         {
             this.shadowRoot.querySelector("button").addEventListener("click", this._handleNameEntry.bind(this));
+            this._textInput.addEventListener("keyup", (event) => {
+                if (event.key == "Enter")
+                {
+                    event.preventDefault();
+                    this._handleNameEntry();
+                }
+            });
         }
 
         enteredCallback()
