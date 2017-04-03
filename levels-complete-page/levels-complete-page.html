@@ -1,0 +1,65 @@
+<link rel="import" href="../page-switcher/page.html">
+
+<!--
+    levels-complete-page
+
+    This page just shows a congratulations message for completing all the levels.
+-->
+<template id="levels-complete-page">
+    <style>
+        @import url("../shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            color: white;
+            font-family: 'Catamaran', sans-serif;
+            font-size: 30px;
+        }
+
+        h1
+        {
+            font-family: 'Pacifico', cursive;
+            animation: 2s pulse infinite;
+        }
+
+        @keyframes pulse {
+            0% {transform: scale(1.0, 1.0);}
+            50% {transform: scale(2.5, 2.5);}
+            100% {transform: scale(1.0, 1.0);}
+        }
+    </style>
+
+    <h1>Congratulations!</h1>
+    
+    <p>You completed all of the levels! Give yourself a pat on the back.</p>
+
+    <button>Back to Main Menu</button>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class LevelsCompletePage extends Page
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#levels-complete-page"));
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("button").addEventListener("click", () => this.switchPageTo("main"));
+        }
+    }
+
+    customElements.define("levels-complete-page", LevelsCompletePage);
+})();
+</script>

@@ -1,0 +1,106 @@
+<link rel="import" href="../level-fixture/level.html">
+<link rel="import" href="../svg-clock/svg-clock.html">
+
+<template id="level-4">
+    <style>
+        @import url("../shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            font-family: 'Catamaran', sans-serif;
+            font-size: 40px;
+        }
+
+        div
+        {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+        }
+
+        svg-clock
+        {
+            --svg-clock-color: white;
+        }
+    </style>
+
+    <h1>Select the clock that says <span id="hour"></span>:<span id="minute"></span></h1>
+
+    <div>
+        <button id="buttonOne">
+            <svg-clock id="clockOne"></svg-clock>
+        </button>
+        <button id="buttonTwo">
+            <svg-clock id="clockTwo"></svg-clock>
+        </button>
+        <button id="buttonThree">
+            <svg-clock id="clockThree"></svg-clock>
+        </button>
+    </div>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class Level4 extends LevelElement
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#level-4"));
+
+            this._clocks = [
+                this.shadowRoot.querySelector("#clockOne"),
+                this.shadowRoot.querySelector("#clockTwo"),
+                this.shadowRoot.querySelector("#clockThree")
+            ];
+            this._hourSpan = this.shadowRoot.querySelector("#hour");
+            this._minuteSpan = this.shadowRoot.querySelector("#minute");
+
+            this._correctClock = 0;
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("#buttonOne").addEventListener("click", () => this._handleClockClick(0));
+            this.shadowRoot.querySelector("#buttonTwo").addEventListener("click", () => this._handleClockClick(1));
+            this.shadowRoot.querySelector("#buttonThree").addEventListener("click", () => this._handleClockClick(2));
+        }
+
+        nextQuestion()
+        {
+            this._clocks.forEach((clock) => {
+                clock.hour = Math.ceil(Math.random() * 12);
+                clock.minute = Math.floor(Math.random() * 60);
+            });
+            this._correctClock = Math.floor(Math.random() * 3);
+
+            this._hourSpan.textContent = this._clocks[this._correctClock].hour;
+            this._minuteSpan.textContent = this._formatMinute(this._clocks[this._correctClock].minute);
+        }
+
+        _handleClockClick(index)
+        {
+            if (index == this._correctClock)
+            {
+                this._questionAnswered(true);
+            }
+            else
+            {
+                let clock = `clock ${this._correctClock + 1}`;
+                this._questionAnswered(false, clock);
+            }
+        }
+    }
+
+    customElements.define("level-4", Level4);
+})();
+</script>

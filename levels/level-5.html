@@ -1,0 +1,122 @@
+<link rel="import" href="../level-fixture/level.html">
+<link rel="import" href="../svg-clock/svg-clock.html">
+
+<template id="level-5">
+    <style>
+        @import url("../shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            font-family: 'Catamaran', sans-serif;
+            font-size: 40px;
+        }
+
+        div
+        {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+        }
+
+        svg-clock
+        {
+            --svg-clock-color: white;
+        }
+    </style>
+
+    <h1>Select the clock with the latest time.</h1>
+
+    <div>
+        <button id="buttonOne">
+            <svg-clock id="clockOne"></svg-clock>
+        </button>
+        <button id="buttonTwo">
+            <svg-clock id="clockTwo"></svg-clock>
+        </button>
+        <button id="buttonThree">
+            <svg-clock id="clockThree"></svg-clock>
+        </button>
+    </div>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class Level5 extends LevelElement
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#level-5"));
+
+            this._correctButton = 0;
+            this._clocks = [
+                this.shadowRoot.querySelector("#clockOne"),
+                this.shadowRoot.querySelector("#clockTwo"),
+                this.shadowRoot.querySelector("#clockThree")
+            ];
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("#buttonOne").addEventListener("click", () => this._handleButtonClick(0));
+            this.shadowRoot.querySelector("#buttonTwo").addEventListener("click", () => this._handleButtonClick(1));
+            this.shadowRoot.querySelector("#buttonThree").addEventListener("click", () => this._handleButtonClick(2));
+        }
+
+        nextQuestion()
+        {
+            let maxHour = 0;
+            let maxMinute = 0;
+            let index = 0;
+
+            this._clocks.forEach((clock) => {
+                clock.hour = Math.ceil(Math.random() * 12);
+                clock.minute = Math.floor(Math.random() * 60);
+
+                if (clock.hour > maxHour)
+                {
+                    maxHour = clock.hour;
+                    maxMinute = clock.minute;
+                    this._correctButton = index;
+                }
+                else if (clock.hour == maxHour && clock.minute > maxMinute)
+                {
+                    maxHour = clock.hour;
+                    maxMinute = clock.minute;
+                    this._correctButton = index;
+                }
+                else if (clock.hour == maxHour && clock.minute == maxMinute) // Two clocks are the same -- fix
+                {
+                    clock.minute = clock.minute - 1;
+                }
+
+                index += 1;
+            });
+        }
+
+        _handleButtonClick(button)
+        {
+            if (button == this._correctButton)
+            {
+                this._questionAnswered(true);
+            }
+            else
+            {
+                let correctClock = `clock ${this._correctButton + 1}`;
+                this._questionAnswered(false, correctClock);
+            }
+        }
+    }
+
+    customElements.define("level-5", Level5);
+})();
+</script>

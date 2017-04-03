@@ -1,0 +1,68 @@
+<link rel="import" href="../page-switcher/page.html">
+
+<!--
+    name-entry-page
+
+    This page is where someone will enter their name to have their scores associated with them.
+    When the "OK" button is clicked, it will fire a "name-entered" event, with the event's detail
+    property containing the name.
+-->
+<template id="name-entry-page">
+    <style>
+        @import url("../shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            width: 100%;
+            height: 100%;
+            color: white;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            font-family: 'Catamaran', sans-serif;
+            font-size: 40px;
+        }
+    </style>
+
+    <p>What is your name?</p>
+    <div>
+        <input type="text">
+        <button>OK</button>
+    </div>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class NameEntryPage extends Page
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#name-entry-page"));
+
+            this._textInput = this.shadowRoot.querySelector("input[type='text']");
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("button").addEventListener("click", this._handleNameEntry.bind(this));
+        }
+
+        enteredCallback()
+        {
+            this._textInput.value = "";
+        }
+
+        _handleNameEntry()
+        {
+            this.dispatchEvent(new CustomEvent("name-entered", { detail: this._textInput.value}));
+            this.switchPageTo("level-1");
+        }
+    }
+
+    customElements.define("name-entry-page", NameEntryPage);
+})();
+</script>

@@ -55,12 +55,7 @@
 
 			// When children are attached, select the chosen page
 			this._slot.addEventListener("slotchange", () => {
-				let selectedChild = this._getSelectedChild(this.page);
-
-				if (selectedChild)
-				{
-					selectedChild.classList.add("chosenPage");
-				}
+				this._selectInitialPage();
 			});
 		}
 
@@ -80,6 +75,11 @@
 			if (!this.hasAttribute("ignore-switch-request"))
 			{
 				this._slot.addEventListener("page-switch", this._handleSwitchRequest.bind(this));
+			}
+
+			if (this._slot.assignedNodes().length > 1)
+			{
+				this._selectInitialPage();
 			}
 		}
 
@@ -125,6 +125,16 @@
 				{
 					this._pageTransition(newSelector);
 				}
+			}
+		}
+
+		_selectInitialPage()
+		{
+			let selectedChild = this._getSelectedChild(this.page);
+
+			if (selectedChild)
+			{
+				selectedChild.classList.add("chosenPage");
 			}
 		}
 

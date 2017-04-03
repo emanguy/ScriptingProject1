@@ -1,0 +1,171 @@
+<link rel="import" href="../overlay-container/overlay.html">
+<link rel="import" href="../page-switcher/page-switcher.html">
+<link rel="import" href="results-page.html">
+
+<!-- 
+    teacher-stats-overlay
+
+    A loosely password-protected overlay which shows how well each student does on the program.
+
+    Attributes:
+     * teacher-password: The password required for a teacher to see the scores. Default "learningIsCool"
+
+    Properties:
+     * teacherPassword: Same as the attribute.
+
+     Methods:
+      * updateScores(scores): Pass an object of the format
+        ```json
+        {
+            "student 1 name": {
+                "level name": [ correct, total ],
+                "another level name": [ correct, total],
+                ...
+            },
+            "student 2 name": {
+                "level name": [ correct, total ],
+                ...
+            },
+            ...
+        }
+        ```
+        which describes how well each student did. This format allows for students exiting the game early and the
+        updating of scores for a level if it is reattempted.
+-->
+<template id="teacher-stats-overlay">
+    <style>
+        @import url("../shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: block;
+            contain: content;
+            background-color: #422910;
+            color: white;
+            width: 80%;
+            height: 80%;
+            font-size: 20px;
+            box-shadow: black 0px 5px 15px;
+        }
+
+        page-switcher
+        {
+            width: 100%;
+            height: 100%;
+        }
+
+        div.centerAllTheThings
+        {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+        }
+
+        input
+        {
+            margin: 5px;
+        }
+
+        input[type="password"].incorrect
+        {
+            border-color: #ff1b1b;
+        }
+    </style>
+
+        <page-switcher page="password" selector-attribute="page-name">
+            <div page-name="password" class="centerAllTheThings">
+                <label for="passwordInput">Password:</label>
+                <input id="passwordInput" type="password">
+                <button>Submit</button>
+            </div>
+            <results-page page-name="results">Content will go here shortly</results-page>
+        </page-switcher>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class TeacherStatsOverlay extends OverlayElement
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#teacher-stats-overlay"));
+
+            this._passwordInput = this.shadowRoot.querySelector("#passwordInput");
+            this._resultsPage = this.shadowRoot.querySelector("results-page");
+            this._pageSwitcher = this.shadowRoot.querySelector("page-switcher");
+            this._teacherPassword = "";
+
+            this._shakeKeyframes = [ 
+                {transform: "translateX(0px)"},
+                {transform: "translateX(-10px)", offset: 0.2},
+                {transform: "translateX(10px)", offset: 0.4},
+                {transform: "translateX(-10px)", offset: 0.6},
+                {transform: "translateX(10px)", offset: 0.8},
+                {transform: "translateX(0px)"}
+            ];
+            this._shakeTiming = {
+                duration: 750,
+                easing: "ease"
+            };
+        }
+
+        connectedCallback()
+        {
+            if (this.hasAttribute("teacher-password"))
+            {
+                this._teacherPassword = this.getAttribute("teacher-password");
+            }
+            else
+            {
+                this._teacherPassword = "learningIsCool";
+            }
+
+            this.shadowRoot.querySelector("button").addEventListener("click", () => this._testPassword());
+            this._passwordInput.addEventListener("keyup", (event) => {
+                if (event.key == "Enter")
+                {
+                    event.preventDefault();
+                    this._testPassword();
+                }
+            });
+        }
+
+        dismissedCallback()
+        {
+            this._pageSwitcher.page = "password";
+            this._passwordInput.value = "";
+            this._passwordInput.classList.remove("incorrect");
+        }
+
+        set teacherPassword(password)
+        {
+            this._teacherPassword = password;
+        }
+
+        updateScores(scores)
+        {
+            this._resultsPage.scores = scores;
+        }
+
+        _testPassword()
+        {
+            if (this._passwordInput.value == this._teacherPassword)
+            {
+                this._pageSwitcher.page = "results";
+            }
+            else
+            {
+                this._passwordInput.classList.add("incorrect");
+                this._passwordInput.animate(this._shakeKeyframes, this._shakeTiming);
+            }
+            this._passwordInput.value = "";
+        }
+    }
+
+    customElements.define("teacher-stats-overlay", TeacherStatsOverlay);
+})();
+</script>

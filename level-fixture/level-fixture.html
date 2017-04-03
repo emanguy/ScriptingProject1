@@ -19,6 +19,11 @@
 	 the level result overlay. It also listens for the enclosed level to fire "question-answered" events.
 
 	 To add instructions, be sure to give the tag the slot="instructions" attribute/value pair.
+
+	 Upon completion, this element fires a "completed" event whose detail property contains the following properties:
+	  * levelName: The name of the current level
+	  * questionsCorrect: The number of questions answered correctly
+	  * questionsTotal: The total number of questions
 -->
 <template id="level-fixture">
 	<style>
@@ -165,6 +170,7 @@
 			// Dismissing the level complete overlay will transition to the next level
 			this._lcoContainer.addEventListener("dismissed", (event) => {
 				this.dispatchEvent(new CustomEvent("completed", { detail: {
+                    levelName: this.levelName,
 					questionsCorrect: this._correctQuestions,
 					questionsTotal: this._numQuestions
 				} }));

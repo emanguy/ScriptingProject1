@@ -54,6 +54,7 @@ footer
 	font-size: 40px;
 	margin-top: 0px;
 	margin-bottom: 0px;
+	cursor: pointer;
 }
 
 .fillspace

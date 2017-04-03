@@ -9,10 +9,15 @@
 		<!-- Import code for custom elements -->
 		<link rel="import" href="page-switcher/page-switcher.html">
 		<link rel="import" href="main-page/main-page.html">
+		<link rel="import" href="name-entry-page/name-entry-page.html">
 		<link rel="import" href="level-fixture/level-fixture.html">
 		<link rel="import" href="levels/level-1.html">
 		<link rel="import" href="levels/level-2.html">
 		<link rel="import" href="levels/level-3.html">
+		<link rel="import" href="levels/level-4.html">
+		<link rel="import" href="levels/level-5.html">
+		<link rel="import" href="levels-complete-page/levels-complete-page.html">
+		<link rel="import" href="teacher-stats-overlay/teacher-stats-overlay.html">
 
 	</head>
 
@@ -22,6 +27,7 @@
 			<main class="fillspace">
 				<page-switcher id="contentSwitch" page="main" selector-attribute="page-name" animated-transition>
 					<main-page page-name="main"></main-page>
+					<name-entry-page page-name="name-entry"></name-entry-page>
 					<level-fixture page-name="level-1" level-name="Level 1" next-page="level-2" num-questions="5">
                         <p slot="instructions">Select the hour that matches the time on the clock.</p>
 						<level-1></level-1>
@@ -31,24 +37,35 @@
 						<p slot="instructions">You can choose the tens place and ones place of the minute.</p>
 						<level-2></level-2>
 					</level-fixture>
-					<level-fixture page-name="level-3" level-name="Level 3" next-page="main" num-questions="5">
+					<level-fixture page-name="level-3" level-name="Level 3" next-page="level-4" num-questions="5">
 						<p slot="instructions">This time we're <b>turning it up a notch.</b></p>
 						<p slot="instructions">Select both the hour and minute that is displayed on the clock.</p>
 						<level-3></level-3>
 					</level-fixture>
-					<!--<level-fixture page-name="level-4" level-name="Level 4" next-page="main" num-questions="5">
+					<level-fixture page-name="level-4" level-name="Level 4" next-page="level-5" num-questions="5">
 						<p slot="instructions">Now we're gonna flip it around.</p>
 						<p slot="instructions">Select the clock that shows the listed time.</p>
 						<level-4></level-4>
-					</level-fixture>-->
+					</level-fixture>
+					<level-fixture page-name="level-5" level-name="Level 5 - The Final Challenge" next-page="end" num-questions="5">
+						<p slot="instructions">Select the clock that shows the latest time.</p>
+						<level-5></level-5>
+					</level-fixture>
+					<levels-complete-page page-name="end"></levels-complete-page>
 				</page-switcher>
 			</main>
 
 			<footer>
 				<h3 class="logo">timR</h3>
 				<div class="fillspace"></div>
-				<button>Teacher Login</button>
+				<button>View Student Progress</button>
 			</footer>
+
+			<overlay-container background-dismiss>
+				<teacher-stats-overlay teacher-password="knowledgeIsPower"></teacher-stats-overlay>
+			</overlay-container>
 		</div>
+
+		<script defer type="text/javascript" src="index-script.js"></script>
 	</body>
 </html>
