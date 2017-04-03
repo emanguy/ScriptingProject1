@@ -1303,7 +1303,7 @@ Displays a radial progress bar which can fit text in its center.
 				
 			this._levelSlot.addEventListener("slotchange", () => {
 				this._levelSlot.assignedNodes().forEach((item) => {
-					if (item.isLevel)
+					if (item.isLevel && !getEventListeners(item)["question-answered"])
 					{
 						item.setAttribute("stage", "level");
 						item.addEventListener("question-answered", this._handleAnsweredQuestion.bind(this));
@@ -1970,7 +1970,7 @@ customElements.define("level-1", Level1);
             let index = 0;
 
             this._clocks.forEach((clock) => {
-                clock.hour = Math.ceil(Math.random() * 12);
+                clock.hour = Math.floor(Math.random() * 12);
                 clock.minute = Math.floor(Math.random() * 60);
 
                 if (clock.hour > maxHour)
@@ -2010,7 +2010,8 @@ customElements.define("level-1", Level1);
 
     customElements.define("level-5", Level5);
 })();
-</script><!--
+</script>
+<!--
     levels-complete-page
 
     This page just shows a congratulations message for completing all the levels.
