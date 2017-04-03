@@ -58,6 +58,16 @@ class MyOverlay extends OverlayElement
 	{
 		this.shadowRoot.querySelector("button").addEventListener("click", () => this.dismiss());
 	}
+
+	revealedCallback()
+	{
+		console.log("Revealed");
+	}
+
+	dismissedCallback()
+	{
+		console.log("Dismissed");
+	}
 }
 
 customElements.define("my-overlay", MyOverlay);

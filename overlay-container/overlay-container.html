@@ -8,8 +8,13 @@
 	Providing the "background-dismiss" attribute will cause the overlay to dismiss
 	the dialog when the backdrop is clicked.
 	
-	The child of this container should extend "overlay" to interface properly with this.
+	The child of this container should extend "overlay" (see overlay.html) to interface properly with this.
+	This element's children can also define a "revealedCallback" and "dismissedCallback" to
+	define functionality that executes when the container reveals/dismisses the overlay. The "overlay" class
+	is the one that actually calls the revealedCallback because it handles the animation.
 	
+	This element additionally dispatches a "dismissed" event when its dismissal animation completes. It has
+	the detail property "isOkay" to denote if the overlay was dismissed in a "okay" or "cancel" manner.
 -->
 <template id="overlay-container">
 	<style>
@@ -65,7 +70,11 @@
 				}
 			});
 
-			this._slot.addEventListener("request-dismiss", () => this.dismiss());
+			this._slot.addEventListener("request-dismiss", (event) => 
+			{
+				event.stopPropagation();
+				this.dismiss(event.detail.isOkay);
+			});
 		}
 
 		// Reveal the overlay container and call reveal() on the enclosed overlay
@@ -86,12 +95,25 @@
 		}
 
 		// Do an opacity animation then hide self
-		dismiss()
+		// isOkay = true when user clicks "OK" or equivalent, false if "cancel" or equivalent
+		dismiss(isOkay = false)
 		{
 			if (this.hasAttribute("revealed"))
 			{
 				let animation = this.animate(this._dismissAnimKeyframes, this._dismissAnimTiming);
-				animation.onfinish = () => this.removeAttribute("revealed");
+				animation.onfinish = () => {
+					this.removeAttribute("revealed");
+					this.dispatchEvent(new CustomEvent("dismissed", { detail: {
+						isOkay: isOkay
+					}}));
+
+					this._slot.assignedNodes().forEach((item) => {
+						if (item.isOverlay && item.dismissedCallback)
+						{
+							item.dismissedCallback();
+						}
+					})
+				};
 			}
 		}
 	}

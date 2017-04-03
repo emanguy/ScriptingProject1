@@ -33,6 +33,8 @@ class ShadowDOMElement extends HTMLElement
 
 	If child elements define "enteredCallback" or "exitedCallback", they will be called at the appropriate
 	time during page transition.
+
+	If you want this page switcher to ignore a "page-switch" event, add the "ignore-switch-request" attribute.
 -->
 
 <template id="page-switcher">
@@ -71,12 +73,18 @@ class ShadowDOMElement extends HTMLElement
 			this._hideKeyframes = { opacity: [1.0, 0.0] };
 			this._showKeyframes = { opacity: [0.0, 1.0] };
 
-			window.onload = () => {
+			// When children are attached, select the chosen page
+			this._slot.addEventListener("slotchange", () => {
 				let selectedChild = this._getSelectedChild(this.page);
-				selectedChild.classList.add("chosenPage");
-			};
+
+				if (selectedChild)
+				{
+					selectedChild.classList.add("chosenPage");
+				}
+			});
 		}
 
+		// When attached to the DOM, assign attribute data to internal state data
 		connectedCallback()
 		{
 			if (this.hasAttribute("selector-attribute"))
@@ -84,9 +92,14 @@ class ShadowDOMElement extends HTMLElement
 				this._selectorAttribute = this.getAttribute("selector-attribute");	
 			}
 
-			if (this.hasAttribute("page") && this._slot.assignedNodes().length)
+			if (this.hasAttribute("page"))
 			{
 				this._page = this.getAttribute("page");
+			}
+
+			if (!this.hasAttribute("ignore-switch-request"))
+			{
+				this._slot.addEventListener("page-switch", this._handleSwitchRequest.bind(this));
 			}
 		}
 
@@ -100,15 +113,38 @@ class ShadowDOMElement extends HTMLElement
 			return this._page;
 		}
 
-		set page(newSelector)
+		get ignoreSwitchRequest()
 		{
-			if (this.hasAttribute("animated-transition"))
+			return this.hasAttribute("ignore-switch-request");
+		}
+
+		set ignoreSwitchRequest(enabled)
+		{
+			this._slot.removeEventListener("page-switch", this._handleSwitchRequest.bind(this));
+
+			if (enabled)
 			{
-				this._animatedPageTransition(newSelector);
+				this.setAttribute("ignore-switch-request", "");
 			}
 			else
 			{
-				this._pageTransition(newSelector);
+				this.removeAttribute("ignore-switch-request");
+				this._slot.addEventListener("page-switch", this._handleSwitchRequest.bind(this));
+			}
+		}
+
+		set page(newSelector)
+		{
+			if (newSelector != this._page)
+			{
+				if (this.hasAttribute("animated-transition"))
+				{
+					this._animatedPageTransition(newSelector);
+				}
+				else
+				{
+					this._pageTransition(newSelector);
+				}
 			}
 		}
 
@@ -184,7 +220,7 @@ class ShadowDOMElement extends HTMLElement
 		// Based on the selected page and attribute to select, return the matching selected child
 		_getSelectedChild(selection)
 		{
-			let childNodes = this._slot.assignedNodes();
+			let childNodes = this._slot.assignedNodes({flatten: true});
 
 			if (this.selectorAttribute)
 			{
@@ -201,6 +237,13 @@ class ShadowDOMElement extends HTMLElement
 			{
 				return childNodes[selection];
 			}
+		}
+
+		// Function used to handle page switch requests
+		_handleSwitchRequest(event)
+		{
+			event.stopPropagation();
+			this.page = event.detail;
 		}
 	}
 
@@ -438,6 +481,10 @@ class ShadowDOMElement extends HTMLElement
 })();
 </script>
 <script type="text/javascript">
+
+/*
+ * Extending this class will allow you to call the switchPageTo() method to imperatively switch pages in a page-switcher.
+ */
 class Page extends ShadowDOMElement
 {
 	constructor(template)
@@ -445,9 +492,10 @@ class Page extends ShadowDOMElement
 		super(template);
 	}
 
+	// Instructs the parent page-switcher to switch to the target page
 	switchPageTo(target)
 	{
-		let pageSwitchEvent = new CustomEvent("page-switch", { detail: target });
+		let pageSwitchEvent = new CustomEvent("page-switch", { detail: target, bubbles: true});
 		this.dispatchEvent(pageSwitchEvent);
 	}
 }
@@ -488,10 +536,7 @@ class Page extends ShadowDOMElement
 	</style>
 
 	<svg-clock animated=""></svg-clock>
-	<div>
-		<button id="game-start">Start Game</button>
-		<button id="level-select">Level Select</button>
-	</div>
+	<button id="game-start">Start Game</button>
 </template>
 
 <script type="text/javascript">
@@ -506,13 +551,11 @@ class Page extends ShadowDOMElement
 
 			this._clock = this.shadowRoot.querySelector("svg-clock");
 			this._startButton = this.shadowRoot.querySelector("#game-start");
-			this._selectButton = this.shadowRoot.querySelector("#level-select");
 		}
 
 		connectedCallback()
 		{
 			this._startButton.addEventListener("click", () => this.switchPageTo("level-1"));
-			this._selectButton.addEventListener("click", () => this.switchPageTo("level-select"));
 		}
 
 		enteredCallback()
@@ -529,13 +572,1171 @@ class Page extends ShadowDOMElement
 	customElements.define("main-page", MainPage);
 })();
 </script>
-</div>
+<!--
+	overlay-container
+	
+	This element provides a backdrop and enclosing container for dialog boxes.
+	
+	Providing the "background-dismiss" attribute will cause the overlay to dismiss
+	the dialog when the backdrop is clicked.
+	
+	The child of this container should extend "overlay" (see overlay.html) to interface properly with this.
+	This element's children can also define a "revealedCallback" and "dismissedCallback" to
+	define functionality that executes when the container reveals/dismisses the overlay. The "overlay" class
+	is the one that actually calls the revealedCallback because it handles the animation.
+	
+	This element additionally dispatches a "dismissed" event when its dismissal animation completes. It has
+	the detail property "isOkay" to denote if the overlay was dismissed in a "okay" or "cancel" manner.
+-->
+<template id="overlay-container">
+	<style>
+		:host
+		{
+			display: none;
+			position: fixed;
+			contain: content;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(100, 100, 100, 0.3);
+			align-items: center;
+			justify-content: center;
+		}
+
+		:host([revealed])
+		{
+			display: flex;
+		}
+	</style>
+
+		<slot></slot>
+</template>
+
+<script type="text/javascript">
+(function() {
+
+	var thisDocument = document.currentScript.ownerDocument;
+
+	class OverlayContainer extends ShadowDOMElement
+	{
+		constructor()
+		{
+			super(thisDocument.querySelector("#overlay-container"));
+
+			this._slot = this.shadowRoot.querySelector("slot");
+			this._dismissAnimKeyframes = {
+				opacity: [1.0, 0.0]
+			};
+			this._dismissAnimTiming = 250;
+		}
+
+		connectedCallback()
+		{
+			// If the backdrop is clicked and this has a background-dismiss attribute, dismiss the dialog
+			this.addEventListener("click", (e) =>
+			{
+				if (e.target == this && this.hasAttribute("background-dismiss"))
+				{
+					this.dismiss();
+				}
+			});
+
+			this._slot.addEventListener("request-dismiss", (event) => 
+			{
+				event.stopPropagation();
+				this.dismiss(event.detail.isOkay);
+			});
+		}
+
+		// Reveal the overlay container and call reveal() on the enclosed overlay
+		reveal()
+		{
+			if (!this.hasAttribute("revealed"))
+			{
+				this.setAttribute("revealed", "");
+
+				this._slot.assignedNodes().forEach((item) => {
+					if (item.isOverlay)
+					{
+						item.reveal();
+					}
+				});
+			}
+
+		}
+
+		// Do an opacity animation then hide self
+		// isOkay = true when user clicks "OK" or equivalent, false if "cancel" or equivalent
+		dismiss(isOkay = false)
+		{
+			if (this.hasAttribute("revealed"))
+			{
+				let animation = this.animate(this._dismissAnimKeyframes, this._dismissAnimTiming);
+				animation.onfinish = () => {
+					this.removeAttribute("revealed");
+					this.dispatchEvent(new CustomEvent("dismissed", { detail: {
+						isOkay: isOkay
+					}}));
+
+					this._slot.assignedNodes().forEach((item) => {
+						if (item.isOverlay && item.dismissedCallback)
+						{
+							item.dismissedCallback();
+						}
+					})
+				};
+			}
+		}
+	}
+
+	customElements.define("overlay-container", OverlayContainer);
+})();
+</script>
+<script type="text/javascript">
+	/*
+ 	 * The overlay element inside an overlay-container should inherit this class.
+	 */
+	class OverlayElement extends ShadowDOMElement
+	{
+		constructor(template)
+		{
+			super(template);
+
+			this._revealKeyframes = [
+				{ transform: "scale(0.2, 0.2)" },
+				{ transform: "scale(1.0, 0.6)", offset: 0.5 },
+				{ transform: "scale(1.0, 1.0)" }
+			];
+			this._revealTiming = {
+				duration: 375,
+				easing: "ease"
+			};
+		}
+
+		// So the overlayContainer can detect this
+		get isOverlay()
+		{
+			return true;
+		}
+
+		reveal()
+		{
+			let animation = this.animate(this._revealKeyframes, this._revealTiming);
+			animation.onfinish = () =>
+			{
+				if (this.revealedCallback)
+				{
+					this.revealedCallback();
+				}
+			}
+		}
+
+		// Dismiss the overlay. "isOkay" is true when "OK" or an equivalent was clicked, false if "cancel" or equivalent clicked.
+		dismiss(isOkay = false)
+		{
+			let event = new CustomEvent("request-dismiss", {bubbles: true, detail: {
+				isOkay: isOkay
+			}});
+			this.dispatchEvent(event);
+		}
+	}
+</script>
+<!-- 
+progress-wheel
+
+Displays a radial progress bar which can fit text in its center.
+
+## Javascript Properties
+
+ * value - the current value of the progress wheel.
+ * maxValue - the highest possible value on the progress wheel.
+
+## Attributes
+
+ * value - same as the javascript var
+ * max-value - same as the javascript var
+
+## CSS Variables
+
+ * \-\-progress-wheel-background: The color of the unfilled part of the progress wheel.
+ * \-\-progress-wheel-color: The color of the filled part of the progress wheel.
+ * \-\-progress-wheel-overlay-color: The background color of the progress wheel's "doughnut hole".
+-->
+<template id="progress-wheel">
+	<style>
+		:host
+		{
+			contain: content;
+			background-color: var(--progress-wheel-background, lightgray);
+			border-radius: 50% !important;
+			width: 120px;
+			height: 120px;
+			display: inline-block;
+		}
+
+		div.clip
+		{
+			width: 50%;
+			height: 100%;
+			left: 50%;
+			position: absolute;
+			overflow: hidden;
+			transform-origin: 0% 50%;
+			transition: transform 0.5s;
+		}
+
+		div.fit
+		{
+			width: 100%;
+			height: 100%;
+			overflow: hidden;
+			position: absolute;
+			left: -100%;
+			transform-origin: 100% 50%;
+			transition: transform 0.5s;
+		}
+
+		div.colored-circle
+		{
+			width: 200%;
+			height: 100%;
+			border-radius: 50%;
+			background-color: var(--progress-wheel-color, green);
+		}
+
+		#overlay
+		{
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			position: absolute;
+			width: 80%;
+			height: 80%;
+			left: 10%;
+			top: 10%;
+			background-color: var(--progress-wheel-overlay-color, white);
+			border-radius: 50%;
+		}
+	</style>
+
+	<div class="clip">
+		<div id="zeroToFifty" class="fit">
+			<div class="colored-circle"></div>
+		</div>
+	</div>
+	<div id="fiftyToHundredMask" class="clip"> 
+		<div id="fiftyToHundred" class="fit">
+			<div class="colored-circle"></div>
+		</div>
+	</div>
+	<div id="overlay">
+		<slot></slot>
+	</div>
+</template>
+
+<script type="text/javascript">
+(function()
+ {
+	 var currentDocument = document.currentScript.ownerDocument;
+
+	 class ProgressWheel extends ShadowDOMElement
+	 {
+		constructor()
+		{
+			super(currentDocument.querySelector("#progress-wheel"));
+			this._maxValue = 1;
+			this._value = 0;
+		}
+
+		connectedCallback()
+		{
+			if (this.hasAttribute("max-value"))
+			{
+				this.maxValue = parseFloat(this.getAttribute("max-value"));
+			}
+
+			if (this.hasAttribute("value"))
+			{
+				this.value = parseFloat(this.getAttribute("value"));
+			}
+		}
+
+		get value()
+		{
+			return this._value;
+		}
+
+		set value(newVal)
+		{
+			if (newVal < 0 || newVal > this._maxValue)
+			{
+				throw new RangeError("Value cannot be less than zero or greater than max value.");
+			}
+
+			this._value = newVal;
+			this._setPercentage(this._value / this._maxValue);
+		}
+
+		get maxValue()
+		{
+			return this._maxValue;
+		}
+
+		set maxValue(newVal)
+		{
+			if (this._maxValue < this._value)
+			{
+				throw new RangeError("Max value cannot be less than value.");
+			}
+
+			this._maxValue = newVal;
+			this._setPercentage(this._value / this._maxValue);
+		}
+
+		_setPercentage(percentage)
+		{
+			let zeroToFifty = this.shadowRoot.querySelector("#zeroToFifty");
+			let fiftyToHundred = this.shadowRoot.querySelector("#fiftyToHundred");
+			let fiftyToHundredMask = this.shadowRoot.querySelector("#fiftyToHundredMask");
+
+			let angle = percentage * 180;
+
+			zeroToFifty.style.transform = `rotate(${angle}deg)`;
+			fiftyToHundred.style.transform = `rotate(${angle}deg)`;
+			fiftyToHundredMask.style.transform = `rotate(${angle}deg)`;
+		}
+	 }
+
+	 customElements.define("progress-wheel", ProgressWheel);
+ })();
+</script>
+<template id="level-complete-overlay">
+    <style>
+        @import url("shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            width: 400px;
+            height: 400px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            background-color: #422910;
+            color: white;
+            font-family: 'Catamaran';
+            font-size: 40px;
+            box-shadow: black 0px 5px 15px;
+            --progress-wheel-overlay-color: #422910;
+        }
+
+        progress-wheel > p
+        {
+            font-size: 20px;
+            text-align: center;
+        }
+    </style>
+
+    <p>Level complete!</p>
+    <progress-wheel>
+        <p><span id="correct"></span> / <span id="total"></span> correct</p>
+    </progress-wheel>
+    <div>
+        <button id="leave">Back to Main Menu</button>
+        <button id="next">Next Level</button>
+    </div>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument; 
+    
+    class LevelCompleteOverlay extends OverlayElement 
+    { 
+        constructor()
+        {
+            super(thisDocument.querySelector("#level-complete-overlay"));
+
+            this._correctQuestions = 0;
+            this._totalQuestions = 1;
+            this._correctSpan = this.shadowRoot.querySelector("#correct");
+            this._totalSpan = this.shadowRoot.querySelector("#total");
+            this._progressWheel = this.shadowRoot.querySelector("progress-wheel");
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("#leave").addEventListener("click", () => this.dismiss(false));
+            this.shadowRoot.querySelector("#next").addEventListener("click", () => this.dismiss(true));
+        }
+
+        revealedCallback()
+        {
+            this._progressWheel.value = this.correctQuestions;
+        }
+
+        dismissedCallback()
+        {
+            this._progressWheel.value = 0;
+        }
+
+        set correctQuestions(correct)
+        {
+            this._correctQuestions = correct;
+            this._correctSpan.textContent = correct;
+        }
+
+        set totalQuestions(total)
+        {
+            this._totalQuestions = total;
+            this._totalSpan.textContent = total;
+            this._progressWheel.maxValue = total;
+        }
+
+        get correctQuestions()
+        {
+            return this._correctQuestions;
+        }
+
+        get totalQuestions()
+        {
+            return this._totalQuestions;
+        }
+    }
+
+    customElements.define("level-complete-overlay", LevelCompleteOverlay);
+})();
+</script><!--
+    question-result-overlay
+
+    This overlay displays if the user got a level question correct or incorrect. If it's
+    incorrect, the "correctAnswer" property can be set to show the user the value of the
+    correct answer. The style changes with the "isCorrect" property.
+-->
+<template id="question-result-overlay">
+    <style>
+        @import url("shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            width: 500px;
+            height: 500px;
+            background-color: #1bff1b;
+            font-family: 'Pacifico';
+            font-size: 40px;
+            color: white;
+            box-shadow: black 0px 5px 15px;
+        }
+
+        :host(.incorrect)
+        {
+            background-color: #ff1b1b;
+        }
+
+        :host( :not(.incorrect) ) > .incorrectText
+        {
+            display: none;
+        }
+
+        :host(.incorrect) > .correctText
+        {
+            display: none;
+        }
+
+        .correctText
+        {
+            animation: 2s tilt infinite;
+        }
+
+        .incorrectText.description
+        {
+            font-size: 30px;
+            font-family: 'Catamaran';
+        }
+
+        @keyframes tilt {
+            0% { transform: rotate(-30deg);}
+            50% { transform: rotate(30deg);}
+            100% { transform: rotate(-30deg);}
+        }
+    </style>
+
+    <p class="correctText">Correct!</p>
+    <p class="incorrectText">Oh no...</p>
+    <p class="incorrectText description">The correct answer was <span id="correctAnswer"></span>.</p>
+    <button>OK</button>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class QuestionResultOverlay extends OverlayElement
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#question-result-overlay"));
+
+            this._correctAnswer = "";
+            this._answerSpan = this.shadowRoot.querySelector("#correctAnswer");
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("button").addEventListener("click", () => this.dismiss(true));
+        }
+
+        get correctAnswer()
+        {
+            return this._correctAnswer;
+        }
+
+        set correctAnswer(answer)
+        {
+            this._correctAnswer = answer;
+            this._answerSpan.textContent = answer;
+        }
+
+        set isCorrect(correct)
+        {
+            if (correct)
+            {
+                this.classList.remove("incorrect");
+            }
+            else
+            {
+                this.classList.add("incorrect");
+            }
+        }
+    }
+
+    customElements.define("question-result-overlay", QuestionResultOverlay);
+})();
+</script><!--
+	level-fixture
+	
+	Displays common UI and separates the instruction page automatically for enclosed levels, tracks
+	questions answered correctly and drives the enclosed level to generate more questions.
+
+	Attributes/Properties:
+	 * `level-name` - The name of the level displayed over the instructions (default "Level 1")
+	 * `next-page` - The title of the next page to transition to after the level is complete (default "end")
+	 * `num-questions` - The number of questions to ask the student. (default 20)
+
+	 This element drives its internal state through the dismissal of the enclosed question result overlay and
+	 the level result overlay. It also listens for the enclosed level to fire "question-answered" events.
+
+	 To add instructions, be sure to give the tag the slot="instructions" attribute/value pair.
+-->
+<template id="level-fixture">
+	<style>
+	@import url("shared-styles/shared-styles.css");
+
+	:host
+	{
+		display: block;
+		width: 100%;
+		height: 100%;
+		contain: content;
+		font-family: 'Catamaran', sans-serif;
+		color: white;
+	}
+
+	div[stage="instructions"]
+	{
+		display: flex;
+		width: 100%;
+		height: 100%;
+		flex-direction: column;
+		justify-content: space-around;
+		align-items: center;
+	}
+
+	div#progress
+	{
+		align-self: flex-end;
+		width: 0px;
+		height: 1px;
+		border: 5px solid white;
+		transition: width 0.5s;
+	}
+
+	page-switcher
+	{
+		width: 100%;
+		height: calc(100% - 5px);
+	}
+	</style>
+
+	<page-switcher selector-attribute="stage" page="instructions">
+		<div stage="instructions">
+			<h1>Instructions - <span id="currentLevel"></span></h1>
+			<!-- Added fallback content just in case I'm dumb -->
+			<slot name="instructions">
+				<p>This level has no instructions.</p>
+			</slot>
+			<button>Play Level!</button>
+		</div>
+
+		<!-- This is where the level will appear -->
+		<slot id="levelSlot"></slot>
+	</page-switcher>
+
+	<div id="progress"></div>
+
+	<overlay-container id="levelCompleteContainer">
+		<!-- TODO write this -->
+		<level-complete-overlay></level-complete-overlay>
+	</overlay-container>
+
+	<overlay-container id="questionResultContainer" background-dismiss="">
+		<question-result-overlay></question-result-overlay>
+	</overlay-container>
+</template>
+
+<script type="text/javascript">
+(function() {
+	var thisDocument = document.currentScript.ownerDocument;
+
+	class LevelFixture extends Page
+	{
+		constructor()
+		{
+			super(thisDocument.querySelector("#level-fixture"));
+
+			this._pageSwitcher = this.shadowRoot.querySelector("page-switcher");
+			this._answeredQuestions = 0;
+			this._correctQuestions = 0;
+			this._levelCompleteOverlay = this.shadowRoot.querySelector("level-complete-overlay");
+			this._questionResultOverlay = this.shadowRoot.querySelector("question-result-overlay");
+			this._qroContainer = this.shadowRoot.querySelector("#questionResultContainer");
+			this._lcoContainer = this.shadowRoot.querySelector("#levelCompleteContainer");
+			this._levelSlot = this.shadowRoot.querySelector("#levelSlot");
+			this._progress = this.shadowRoot.querySelector("#progress");
+				
+			this._levelSlot.addEventListener("slotchange", () => {
+				this._levelSlot.assignedNodes().forEach((item) => {
+					if (item.isLevel)
+					{
+						item.setAttribute("stage", "level");
+						item.addEventListener("question-answered", this._handleAnsweredQuestion.bind(this));
+					}
+				});
+			});
+		}
+
+		connectedCallback()
+		{
+			if (this.hasAttribute("level-name"))
+			{
+				this.levelName = this.getAttribute("level-name");
+			}
+			else
+			{
+				this.levelName = "Level 1";
+			}
+
+			if (this.hasAttribute("next-page"))
+			{
+				this.nextPage = this.getAttribute("next-page");
+			}
+			else
+			{
+				this.nextPage = "done";
+			}
+
+			if (this.hasAttribute("num-questions"))
+			{
+				this._numQuestions = parseInt(this.getAttribute("num-questions"));
+			}
+			else
+			{
+				this._numQuestions = 20;
+			}
+
+			// Dismissing the question result overlay will either show the next question or the end-of-level results overlay
+			this._qroContainer.addEventListener("dismissed", () => {
+                this._updateProgress();
+
+				if (this._answeredQuestions < this._numQuestions)
+				{
+					this._advanceQuestion();
+				}
+				else
+				{
+					this._levelCompleteOverlay.correctQuestions = this._correctQuestions;
+					this._levelCompleteOverlay.totalQuestions = this._numQuestions;
+					this._lcoContainer.reveal();
+				}
+			});
+
+			// Dismissing the level complete overlay will transition to the next level
+			this._lcoContainer.addEventListener("dismissed", (event) => {
+				this.dispatchEvent(new CustomEvent("completed", { detail: {
+					questionsCorrect: this._correctQuestions,
+					questionsTotal: this._numQuestions
+				} }));
+
+				if (event.detail.isOkay)
+				{
+					this.switchPageTo(this.nextPage);
+				}
+				else
+				{
+					this.switchPageTo("main");
+				}
+			});
+
+            // Clicking the "start level" button will move from the instructions page to the level
+			this.shadowRoot.querySelector("button").addEventListener("click", () => {
+				this._pageSwitcher.page = "level";
+				this._advanceQuestion();
+			});
+		}
+
+		exitedCallback()
+		{
+			// Reset everything after leaving this page
+			this._answeredQuestions = 0;
+			this._correctQuestions = 0;
+			this._pageSwitcher.page = "instructions";
+			this._updateProgress();
+		}
+
+		get levelName()
+		{
+			return this._levelName;
+		}
+
+		set levelName(name)
+		{
+			this.shadowRoot.querySelector("#currentLevel").textContent = name;
+			this._levelName = name;
+		}
+
+		_updateProgress()
+		{
+			let progress = 100 * this._answeredQuestions / this._numQuestions;
+			this._progress.style.width = `${progress}%`;
+		}
+		_advanceQuestion()
+		{
+			this._levelSlot.assignedNodes().forEach((item) => {
+				if (item.isLevel)
+				{
+					item.nextQuestion();
+				}
+			});
+		}
+
+		_handleAnsweredQuestion(event)
+		{
+			this._answeredQuestions += 1;
+			this._questionResultOverlay.isCorrect = event.detail.questionCorrect;
+
+			if (event.detail.questionCorrect)
+			{
+				this._correctQuestions += 1;
+			}
+			else
+			{
+				this._questionResultOverlay.correctAnswer = event.detail.correctAnswer;
+			}
+
+			this._qroContainer.reveal();
+		}
+	}
+
+	customElements.define("level-fixture", LevelFixture);
+})();
+</script>
+<script type="text/javascript">
+/*
+ * Level
+ * 
+ * Placed inside a level-fixture for full functionality. Child classes should call
+ * questionAnswered() when the user chooses their answer and implement nextQuestion()
+ * to generate a new question.
+ */
+class LevelElement extends ShadowDOMElement
+{
+    constructor(content)
+    {
+        super(content);
+    }
+
+    // Call this when a question's been answered.
+    // Correct = true when question is correct
+    // CorrectAnswer = The correct answer
+    _questionAnswered(correct, correctAnswer = "")
+    {
+        this.dispatchEvent(new CustomEvent("question-answered", { detail: {
+            questionCorrect: correct,
+            correctAnswer: correctAnswer
+        }}));
+    }
+
+    get isLevel()
+    {
+        return true;
+    }
+
+    _formatMinute(minutes)
+    {
+        if (minutes < 10)
+        {
+            return "0" + minutes;
+        }
+        else
+        {
+            return "" + minutes;
+        }
+    }
+}
+</script><template id="level-1">
+    <style>
+        @import url("shared-styles/shared-styles.css");
+
+        /* Shadow DOM code cannot be imported */
+        :host
+        {
+            display: flex;
+            contain: content;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            font-family: 'Catamaran';
+            font-size: 40px;
+        }
+
+        svg-clock
+        {
+            --svg-clock-size: 500px;
+            --svg-clock-color: white;
+        }
+    </style>
+
+    <svg-clock></svg-clock>
+
+    <p>
+        The time is 
+        <select>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+            <option>9</option>
+            <option>10</option>
+            <option>11</option>
+            <option>12</option>
+        </select>
+         : 00.  
+        <button>OK</button>
+    </p>
+
+    
+</template>
+
+<script type="text/javascript">
+(function() {
+var thisDocument = document.currentScript.ownerDocument;
+
+class Level1 extends LevelElement
+{
+    constructor()
+    {
+        super(thisDocument.querySelector("#level-1"));
+
+        this._clock = this.shadowRoot.querySelector("svg-clock");
+        this._hourSelector = this.shadowRoot.querySelector("select");
+        this._correctIndex = 0;
+    }
+
+    connectedCallback()
+    {
+        this.shadowRoot.querySelector("button").addEventListener("click",  this._handleSubmitClick.bind(this));
+    }
+
+    // Pick a new option in the selector to be the correct answer then update the clock accordingly
+    nextQuestion()
+    {
+        this._correctIndex = Math.floor(Math.random() * 12);
+        this._clock.hour = this._correctIndex + 1;
+        this._hourSelector.selectedIndex = 0;
+    }
+
+    // When the user clicks "OK" evaluate their answer and call questionAnswered() (see level-fixture/level.html)
+    _handleSubmitClick()
+    {
+        if (this._correctIndex == this._hourSelector.selectedIndex)
+        {
+            this._questionAnswered(true);
+        }
+        else
+        {
+            this._questionAnswered(false, "" + (this._correctIndex + 1) + ":00");
+        }
+    }
+}
+
+customElements.define("level-1", Level1);
+})();
+</script><template id="level-2">
+    <style>
+        @import url("shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            font-family: 'Catamaran';
+            font-size: 40px;
+        }
+
+        svg-clock
+        {
+            --svg-clock-size: 500px;
+            --svg-clock-color: white;
+        }
+    </style>
+
+    <svg-clock></svg-clock>
+
+    <p>
+        The time is 12 : 
+        <select id="minuteTens">
+            <option>0</option>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+        </select>
+        <select id="minuteOnes">
+            <option>0</option>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+            <option>9</option>
+        </select>
+        <button>OK</button>
+    </p>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class Level2 extends LevelElement
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#level-2"));
+
+            this._clock = this.shadowRoot.querySelector("svg-clock");
+            this._tensSelector = this.shadowRoot.querySelector("#minuteTens");
+            this._onesSelector = this.shadowRoot.querySelector("#minuteOnes");
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("button").addEventListener("click", this._handleSubmitClick.bind(this));
+        }
+
+        nextQuestion()
+        {
+            this._tensSelector.selectedIndex = 0;
+            this._onesSelector.selectedIndex = 0;
+            this._clock.minute = Math.floor(Math.random() * 60);
+        }
+
+        _handleSubmitClick()
+        {
+            let selectedMinute = this._tensSelector.selectedIndex * 10 + this._onesSelector.selectedIndex;
+
+            if (selectedMinute == this._clock.minute)
+            {
+                this._questionAnswered(true);
+            }
+            else
+            {
+                this._questionAnswered(false, "12:" + this._formatMinute(this._clock.minute));
+            }
+        }
+    }
+
+    customElements.define("level-2", Level2);
+})();
+</script><template id="level-3">
+    <style>
+        @import url("shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            font-family: 'Catamaran';
+            font-size: 40px;
+        }
+
+        svg-clock
+        {
+            --svg-clock-size: 500px;
+            --svg-clock-color: white;
+        }
+    </style>
+
+    <svg-clock></svg-clock>
+
+    <p>
+        The time is 
+        <select id="hour">
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+            <option>9</option>
+            <option>10</option>
+            <option>11</option>
+            <option>12</option>
+        </select>
+         : 
+        <select id="minuteTens">
+            <option>0</option>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+        </select>
+        <select id="minuteOnes">
+            <option>0</option>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+            <option>9</option>
+        </select>
+        <button>OK</button>
+    </p>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class Level3 extends LevelElement
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#level-3"));
+
+            this._clock = this.shadowRoot.querySelector("svg-clock");
+            this._hourSelect = this.shadowRoot.querySelector("#hour");
+            this._minuteTensSelect = this.shadowRoot.querySelector("#minuteTens");
+            this._minuteOnesSelect = this.shadowRoot.querySelector("#minuteOnes");
+            this._correctHourIndex = 0;
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("button").addEventListener("click", this._handleSubmitClick.bind(this));
+        }
+
+        nextQuestion()
+        {
+           this._hourSelect.selectedIndex = 0;
+           this._minuteTensSelect.selectedIndex = 0;
+           this._minuteOnesSelect.selectedIndex = 0;
+           this._correctHourIndex = Math.floor(Math.random() * 12);
+
+           this._clock.hour = this._correctHourIndex + 1;
+           this._clock.minute = Math.floor(Math.random() * 60);
+        }
+
+        _handleSubmitClick()
+        {
+            let selectedMinute = this._minuteTensSelect.selectedIndex * 10 + this._minuteOnesSelect.selectedIndex;
+
+            if (this._hourSelect.selectedIndex == this._correctHourIndex && selectedMinute == this._clock.minute)
+            {
+                this._questionAnswered(true);
+            }
+            else
+            {
+                let correctTimeString = "" + this._clock.hour + ":" + this._formatMinute(this._clock.minute);
+                this._questionAnswered(false, correctTimeString);
+            }
+        }
+
+    }
+
+    customElements.define("level-3", Level3);
+})();
+</script></div>
 		<div class="viewportContainer">
+
 			<main class="fillspace">
 				<page-switcher id="contentSwitch" page="main" selector-attribute="page-name" animated-transition="">
 					<main-page page-name="main"></main-page>
+					<level-fixture page-name="level-1" level-name="Level 1" next-page="level-2" num-questions="5">
+                        <p slot="instructions">Select the hour that matches the time on the clock.</p>
+						<level-1></level-1>
+					</level-fixture>
+					<level-fixture page-name="level-2" level-name="Level 2" next-page="level-3" num-questions="5">
+						<p slot="instructions">Select the minute that matches the time on the clock.</p>
+						<p slot="instructions">You can choose the tens place and ones place of the minute.</p>
+						<level-2></level-2>
+					</level-fixture>
+					<level-fixture page-name="level-3" level-name="Level 3" next-page="main" num-questions="5">
+						<p slot="instructions">This time we're <b>turning it up a notch.</b></p>
+						<p slot="instructions">Select both the hour and minute that is displayed on the clock.</p>
+						<level-3></level-3>
+					</level-fixture>
+					<!--<level-fixture page-name="level-4" level-name="Level 4" next-page="main" num-questions="5">
+						<p slot="instructions">Now we're gonna flip it around.</p>
+						<p slot="instructions">Select the clock that shows the listed time.</p>
+						<level-4></level-4>
+					</level-fixture>-->
 				</page-switcher>
 			</main>
+
 			<footer>
 				<h3 class="logo">timR</h3>
 				<div class="fillspace"></div>

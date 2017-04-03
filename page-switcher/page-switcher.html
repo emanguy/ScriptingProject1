@@ -53,12 +53,18 @@
 			this._hideKeyframes = { opacity: [1.0, 0.0] };
 			this._showKeyframes = { opacity: [0.0, 1.0] };
 
-			window.onload = () => {
+			// When children are attached, select the chosen page
+			this._slot.addEventListener("slotchange", () => {
 				let selectedChild = this._getSelectedChild(this.page);
-				selectedChild.classList.add("chosenPage");
-			};
+
+				if (selectedChild)
+				{
+					selectedChild.classList.add("chosenPage");
+				}
+			});
 		}
 
+		// When attached to the DOM, assign attribute data to internal state data
 		connectedCallback()
 		{
 			if (this.hasAttribute("selector-attribute"))
@@ -66,7 +72,7 @@
 				this._selectorAttribute = this.getAttribute("selector-attribute");	
 			}
 
-			if (this.hasAttribute("page") && this._slot.assignedNodes().length)
+			if (this.hasAttribute("page"))
 			{
 				this._page = this.getAttribute("page");
 			}
@@ -109,13 +115,16 @@
 
 		set page(newSelector)
 		{
-			if (this.hasAttribute("animated-transition"))
+			if (newSelector != this._page)
 			{
-				this._animatedPageTransition(newSelector);
-			}
-			else
-			{
-				this._pageTransition(newSelector);
+				if (this.hasAttribute("animated-transition"))
+				{
+					this._animatedPageTransition(newSelector);
+				}
+				else
+				{
+					this._pageTransition(newSelector);
+				}
 			}
 		}
 
@@ -191,7 +200,7 @@
 		// Based on the selected page and attribute to select, return the matching selected child
 		_getSelectedChild(selection)
 		{
-			let childNodes = this._slot.assignedNodes();
+			let childNodes = this._slot.assignedNodes({flatten: true});
 
 			if (this.selectorAttribute)
 			{
@@ -210,6 +219,7 @@
 			}
 		}
 
+		// Function used to handle page switch requests
 		_handleSwitchRequest(event)
 		{
 			event.stopPropagation();

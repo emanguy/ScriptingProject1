@@ -37,10 +37,7 @@
 	</style>
 
 	<svg-clock animated></svg-clock>
-	<div>
-		<button id="game-start">Start Game</button>
-		<button id="level-select">Level Select</button>
-	</div>
+	<button id="game-start">Start Game</button>
 </template>
 
 <script type="text/javascript">
@@ -55,13 +52,11 @@
 
 			this._clock = this.shadowRoot.querySelector("svg-clock");
 			this._startButton = this.shadowRoot.querySelector("#game-start");
-			this._selectButton = this.shadowRoot.querySelector("#level-select");
 		}
 
 		connectedCallback()
 		{
 			this._startButton.addEventListener("click", () => this.switchPageTo("level-1"));
-			this._selectButton.addEventListener("click", () => this.switchPageTo("level-select"));
 		}
 
 		enteredCallback()

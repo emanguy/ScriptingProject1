@@ -12,6 +12,7 @@ class Page extends ShadowDOMElement
 		super(template);
 	}
 
+	// Instructs the parent page-switcher to switch to the target page
 	switchPageTo(target)
 	{
 		let pageSwitchEvent = new CustomEvent("page-switch", { detail: target, bubbles: true});

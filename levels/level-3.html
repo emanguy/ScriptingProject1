@@ -1,0 +1,123 @@
+<link rel="import" href="../level-fixture/level.html">
+<link rel="import" href="../svg-clock/svg-clock.html">
+
+<template id="level-3">
+    <style>
+        @import url("../shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            font-family: 'Catamaran';
+            font-size: 40px;
+        }
+
+        svg-clock
+        {
+            --svg-clock-size: 500px;
+            --svg-clock-color: white;
+        }
+    </style>
+
+    <svg-clock></svg-clock>
+
+    <p>
+        The time is 
+        <select id="hour">
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+            <option>9</option>
+            <option>10</option>
+            <option>11</option>
+            <option>12</option>
+        </select>
+         : 
+        <select id="minuteTens">
+            <option>0</option>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+        </select>
+        <select id="minuteOnes">
+            <option>0</option>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+            <option>9</option>
+        </select>
+        <button>OK</button>
+    </p>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class Level3 extends LevelElement
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#level-3"));
+
+            this._clock = this.shadowRoot.querySelector("svg-clock");
+            this._hourSelect = this.shadowRoot.querySelector("#hour");
+            this._minuteTensSelect = this.shadowRoot.querySelector("#minuteTens");
+            this._minuteOnesSelect = this.shadowRoot.querySelector("#minuteOnes");
+            this._correctHourIndex = 0;
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("button").addEventListener("click", this._handleSubmitClick.bind(this));
+        }
+
+        nextQuestion()
+        {
+           this._hourSelect.selectedIndex = 0;
+           this._minuteTensSelect.selectedIndex = 0;
+           this._minuteOnesSelect.selectedIndex = 0;
+           this._correctHourIndex = Math.floor(Math.random() * 12);
+
+           this._clock.hour = this._correctHourIndex + 1;
+           this._clock.minute = Math.floor(Math.random() * 60);
+        }
+
+        _handleSubmitClick()
+        {
+            let selectedMinute = this._minuteTensSelect.selectedIndex * 10 + this._minuteOnesSelect.selectedIndex;
+
+            if (this._hourSelect.selectedIndex == this._correctHourIndex && selectedMinute == this._clock.minute)
+            {
+                this._questionAnswered(true);
+            }
+            else
+            {
+                let correctTimeString = "" + this._clock.hour + ":" + this._formatMinute(this._clock.minute);
+                this._questionAnswered(false, correctTimeString);
+            }
+        }
+
+    }
+
+    customElements.define("level-3", Level3);
+})();
+</script>

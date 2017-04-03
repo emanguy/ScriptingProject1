@@ -1,0 +1,100 @@
+<link rel="import" href="../level-fixture/level.html">
+<link rel="import" href="../svg-clock/svg-clock.html">
+
+<template id="level-2">
+    <style>
+        @import url("../shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            font-family: 'Catamaran';
+            font-size: 40px;
+        }
+
+        svg-clock
+        {
+            --svg-clock-size: 500px;
+            --svg-clock-color: white;
+        }
+    </style>
+
+    <svg-clock></svg-clock>
+
+    <p>
+        The time is 12 : 
+        <select id="minuteTens">
+            <option>0</option>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+        </select>
+        <select id="minuteOnes">
+            <option>0</option>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+            <option>9</option>
+        </select>
+        <button>OK</button>
+    </p>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class Level2 extends LevelElement
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#level-2"));
+
+            this._clock = this.shadowRoot.querySelector("svg-clock");
+            this._tensSelector = this.shadowRoot.querySelector("#minuteTens");
+            this._onesSelector = this.shadowRoot.querySelector("#minuteOnes");
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("button").addEventListener("click", this._handleSubmitClick.bind(this));
+        }
+
+        nextQuestion()
+        {
+            this._tensSelector.selectedIndex = 0;
+            this._onesSelector.selectedIndex = 0;
+            this._clock.minute = Math.floor(Math.random() * 60);
+        }
+
+        _handleSubmitClick()
+        {
+            let selectedMinute = this._tensSelector.selectedIndex * 10 + this._onesSelector.selectedIndex;
+
+            if (selectedMinute == this._clock.minute)
+            {
+                this._questionAnswered(true);
+            }
+            else
+            {
+                this._questionAnswered(false, "12:" + this._formatMinute(this._clock.minute));
+            }
+        }
+    }
+
+    customElements.define("level-2", Level2);
+})();
+</script>

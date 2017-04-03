@@ -29,12 +29,22 @@
 
 		reveal()
 		{
-			this.animate(this._revealKeyframes, this._revealTiming);
+			let animation = this.animate(this._revealKeyframes, this._revealTiming);
+			animation.onfinish = () =>
+			{
+				if (this.revealedCallback)
+				{
+					this.revealedCallback();
+				}
+			}
 		}
 
-		dismiss()
+		// Dismiss the overlay. "isOkay" is true when "OK" or an equivalent was clicked, false if "cancel" or equivalent clicked.
+		dismiss(isOkay = false)
 		{
-			let event = new CustomEvent("request-dismiss", {bubbles: true});
+			let event = new CustomEvent("request-dismiss", {bubbles: true, detail: {
+				isOkay: isOkay
+			}});
 			this.dispatchEvent(event);
 		}
 	}

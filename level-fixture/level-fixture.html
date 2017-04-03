@@ -1,4 +1,244 @@
-<link rel="import" href="../shadowDOMElement/shadowDOMElement.html">
 <link rel="import" href="../overlay-container/overlay-container.html">
 <link rel="import" href="../page-switcher/page-switcher.html">
 <link rel="import" href="../page-switcher/page.html">
+<link rel="import" href="level-complete-overlay.html">
+<link rel="import" href="question-result-overlay.html">
+
+<!--
+	level-fixture
+	
+	Displays common UI and separates the instruction page automatically for enclosed levels, tracks
+	questions answered correctly and drives the enclosed level to generate more questions.
+
+	Attributes/Properties:
+	 * `level-name` - The name of the level displayed over the instructions (default "Level 1")
+	 * `next-page` - The title of the next page to transition to after the level is complete (default "end")
+	 * `num-questions` - The number of questions to ask the student. (default 20)
+
+	 This element drives its internal state through the dismissal of the enclosed question result overlay and
+	 the level result overlay. It also listens for the enclosed level to fire "question-answered" events.
+
+	 To add instructions, be sure to give the tag the slot="instructions" attribute/value pair.
+-->
+<template id="level-fixture">
+	<style>
+	@import url("../shared-styles/shared-styles.css");
+
+	:host
+	{
+		display: block;
+		width: 100%;
+		height: 100%;
+		contain: content;
+		font-family: 'Catamaran', sans-serif;
+		color: white;
+	}
+
+	div[stage="instructions"]
+	{
+		display: flex;
+		width: 100%;
+		height: 100%;
+		flex-direction: column;
+		justify-content: space-around;
+		align-items: center;
+	}
+
+	div#progress
+	{
+		align-self: flex-end;
+		width: 0px;
+		height: 1px;
+		border: 5px solid white;
+		transition: width 0.5s;
+	}
+
+	page-switcher
+	{
+		width: 100%;
+		height: calc(100% - 5px);
+	}
+	</style>
+
+	<page-switcher selector-attribute="stage" page="instructions">
+		<div stage="instructions">
+			<h1>Instructions - <span id="currentLevel"></span></h1>
+			<!-- Added fallback content just in case I'm dumb -->
+			<slot name="instructions">
+				<p>This level has no instructions.</p>
+			</slot>
+			<button>Play Level!</button>
+		</div>
+
+		<!-- This is where the level will appear -->
+		<slot id="levelSlot"></slot>
+	</page-switcher>
+
+	<div id="progress"></div>
+
+	<overlay-container id="levelCompleteContainer">
+		<!-- TODO write this -->
+		<level-complete-overlay></level-complete-overlay>
+	</overlay-container>
+
+	<overlay-container id="questionResultContainer" background-dismiss>
+		<question-result-overlay></question-result-overlay>
+	</overlay-container>
+</template>
+
+<script type="text/javascript">
+(function() {
+	var thisDocument = document.currentScript.ownerDocument;
+
+	class LevelFixture extends Page
+	{
+		constructor()
+		{
+			super(thisDocument.querySelector("#level-fixture"));
+
+			this._pageSwitcher = this.shadowRoot.querySelector("page-switcher");
+			this._answeredQuestions = 0;
+			this._correctQuestions = 0;
+			this._levelCompleteOverlay = this.shadowRoot.querySelector("level-complete-overlay");
+			this._questionResultOverlay = this.shadowRoot.querySelector("question-result-overlay");
+			this._qroContainer = this.shadowRoot.querySelector("#questionResultContainer");
+			this._lcoContainer = this.shadowRoot.querySelector("#levelCompleteContainer");
+			this._levelSlot = this.shadowRoot.querySelector("#levelSlot");
+			this._progress = this.shadowRoot.querySelector("#progress");
+				
+			this._levelSlot.addEventListener("slotchange", () => {
+				this._levelSlot.assignedNodes().forEach((item) => {
+					if (item.isLevel)
+					{
+						item.setAttribute("stage", "level");
+						item.addEventListener("question-answered", this._handleAnsweredQuestion.bind(this));
+					}
+				});
+			});
+		}
+
+		connectedCallback()
+		{
+			if (this.hasAttribute("level-name"))
+			{
+				this.levelName = this.getAttribute("level-name");
+			}
+			else
+			{
+				this.levelName = "Level 1";
+			}
+
+			if (this.hasAttribute("next-page"))
+			{
+				this.nextPage = this.getAttribute("next-page");
+			}
+			else
+			{
+				this.nextPage = "done";
+			}
+
+			if (this.hasAttribute("num-questions"))
+			{
+				this._numQuestions = parseInt(this.getAttribute("num-questions"));
+			}
+			else
+			{
+				this._numQuestions = 20;
+			}
+
+			// Dismissing the question result overlay will either show the next question or the end-of-level results overlay
+			this._qroContainer.addEventListener("dismissed", () => {
+                this._updateProgress();
+
+				if (this._answeredQuestions < this._numQuestions)
+				{
+					this._advanceQuestion();
+				}
+				else
+				{
+					this._levelCompleteOverlay.correctQuestions = this._correctQuestions;
+					this._levelCompleteOverlay.totalQuestions = this._numQuestions;
+					this._lcoContainer.reveal();
+				}
+			});
+
+			// Dismissing the level complete overlay will transition to the next level
+			this._lcoContainer.addEventListener("dismissed", (event) => {
+				this.dispatchEvent(new CustomEvent("completed", { detail: {
+					questionsCorrect: this._correctQuestions,
+					questionsTotal: this._numQuestions
+				} }));
+
+				if (event.detail.isOkay)
+				{
+					this.switchPageTo(this.nextPage);
+				}
+				else
+				{
+					this.switchPageTo("main");
+				}
+			});
+
+            // Clicking the "start level" button will move from the instructions page to the level
+			this.shadowRoot.querySelector("button").addEventListener("click", () => {
+				this._pageSwitcher.page = "level";
+				this._advanceQuestion();
+			});
+		}
+
+		exitedCallback()
+		{
+			// Reset everything after leaving this page
+			this._answeredQuestions = 0;
+			this._correctQuestions = 0;
+			this._pageSwitcher.page = "instructions";
+			this._updateProgress();
+		}
+
+		get levelName()
+		{
+			return this._levelName;
+		}
+
+		set levelName(name)
+		{
+			this.shadowRoot.querySelector("#currentLevel").textContent = name;
+			this._levelName = name;
+		}
+
+		_updateProgress()
+		{
+			let progress = 100 * this._answeredQuestions / this._numQuestions;
+			this._progress.style.width = `${progress}%`;
+		}
+		_advanceQuestion()
+		{
+			this._levelSlot.assignedNodes().forEach((item) => {
+				if (item.isLevel)
+				{
+					item.nextQuestion();
+				}
+			});
+		}
+
+		_handleAnsweredQuestion(event)
+		{
+			this._answeredQuestions += 1;
+			this._questionResultOverlay.isCorrect = event.detail.questionCorrect;
+
+			if (event.detail.questionCorrect)
+			{
+				this._correctQuestions += 1;
+			}
+			else
+			{
+				this._questionResultOverlay.correctAnswer = event.detail.correctAnswer;
+			}
+
+			this._qroContainer.reveal();
+		}
+	}
+
+	customElements.define("level-fixture", LevelFixture);
+})();
+</script>

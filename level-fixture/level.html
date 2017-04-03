@@ -1,0 +1,46 @@
+<link rel="import" href="../shadowDOMElement/shadowDOMElement.html">
+
+<script type="text/javascript">
+/*
+ * Level
+ * 
+ * Placed inside a level-fixture for full functionality. Child classes should call
+ * questionAnswered() when the user chooses their answer and implement nextQuestion()
+ * to generate a new question.
+ */
+class LevelElement extends ShadowDOMElement
+{
+    constructor(content)
+    {
+        super(content);
+    }
+
+    // Call this when a question's been answered.
+    // Correct = true when question is correct
+    // CorrectAnswer = The correct answer
+    _questionAnswered(correct, correctAnswer = "")
+    {
+        this.dispatchEvent(new CustomEvent("question-answered", { detail: {
+            questionCorrect: correct,
+            correctAnswer: correctAnswer
+        }}));
+    }
+
+    get isLevel()
+    {
+        return true;
+    }
+
+    _formatMinute(minutes)
+    {
+        if (minutes < 10)
+        {
+            return "0" + minutes;
+        }
+        else
+        {
+            return "" + minutes;
+        }
+    }
+}
+</script>

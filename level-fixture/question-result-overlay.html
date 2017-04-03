@@ -1,0 +1,114 @@
+<link rel="import" href="../overlay-container/overlay.html">
+
+<!--
+    question-result-overlay
+
+    This overlay displays if the user got a level question correct or incorrect. If it's
+    incorrect, the "correctAnswer" property can be set to show the user the value of the
+    correct answer. The style changes with the "isCorrect" property.
+-->
+<template id="question-result-overlay">
+    <style>
+        @import url("../shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            width: 500px;
+            height: 500px;
+            background-color: #1bff1b;
+            font-family: 'Pacifico';
+            font-size: 40px;
+            color: white;
+            box-shadow: black 0px 5px 15px;
+        }
+
+        :host(.incorrect)
+        {
+            background-color: #ff1b1b;
+        }
+
+        :host( :not(.incorrect) ) > .incorrectText
+        {
+            display: none;
+        }
+
+        :host(.incorrect) > .correctText
+        {
+            display: none;
+        }
+
+        .correctText
+        {
+            animation: 2s tilt infinite;
+        }
+
+        .incorrectText.description
+        {
+            font-size: 30px;
+            font-family: 'Catamaran';
+        }
+
+        @keyframes tilt {
+            0% { transform: rotate(-30deg);}
+            50% { transform: rotate(30deg);}
+            100% { transform: rotate(-30deg);}
+        }
+    </style>
+
+    <p class="correctText">Correct!</p>
+    <p class="incorrectText">Oh no...</p>
+    <p class="incorrectText description">The correct answer was <span id="correctAnswer"></span>.</p>
+    <button>OK</button>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class QuestionResultOverlay extends OverlayElement
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#question-result-overlay"));
+
+            this._correctAnswer = "";
+            this._answerSpan = this.shadowRoot.querySelector("#correctAnswer");
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("button").addEventListener("click", () => this.dismiss(true));
+        }
+
+        get correctAnswer()
+        {
+            return this._correctAnswer;
+        }
+
+        set correctAnswer(answer)
+        {
+            this._correctAnswer = answer;
+            this._answerSpan.textContent = answer;
+        }
+
+        set isCorrect(correct)
+        {
+            if (correct)
+            {
+                this.classList.remove("incorrect");
+            }
+            else
+            {
+                this.classList.add("incorrect");
+            }
+        }
+    }
+
+    customElements.define("question-result-overlay", QuestionResultOverlay);
+})();
+</script>

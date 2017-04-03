@@ -1,0 +1,101 @@
+<link rel="import" href="../overlay-container/overlay.html">
+<link rel="import" href="../progress-wheel/progress-wheel.html">
+
+<template id="level-complete-overlay">
+    <style>
+        @import url("../shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            width: 400px;
+            height: 400px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            background-color: #422910;
+            color: white;
+            font-family: 'Catamaran';
+            font-size: 40px;
+            box-shadow: black 0px 5px 15px;
+            --progress-wheel-overlay-color: #422910;
+        }
+
+        progress-wheel > p
+        {
+            font-size: 20px;
+            text-align: center;
+        }
+    </style>
+
+    <p>Level complete!</p>
+    <progress-wheel>
+        <p><span id="correct"></span> / <span id="total"></span> correct</p>
+    </progress-wheel>
+    <div>
+        <button id="leave">Back to Main Menu</button>
+        <button id="next">Next Level</button>
+    </div>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument; 
+    
+    class LevelCompleteOverlay extends OverlayElement 
+    { 
+        constructor()
+        {
+            super(thisDocument.querySelector("#level-complete-overlay"));
+
+            this._correctQuestions = 0;
+            this._totalQuestions = 1;
+            this._correctSpan = this.shadowRoot.querySelector("#correct");
+            this._totalSpan = this.shadowRoot.querySelector("#total");
+            this._progressWheel = this.shadowRoot.querySelector("progress-wheel");
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("#leave").addEventListener("click", () => this.dismiss(false));
+            this.shadowRoot.querySelector("#next").addEventListener("click", () => this.dismiss(true));
+        }
+
+        revealedCallback()
+        {
+            this._progressWheel.value = this.correctQuestions;
+        }
+
+        dismissedCallback()
+        {
+            this._progressWheel.value = 0;
+        }
+
+        set correctQuestions(correct)
+        {
+            this._correctQuestions = correct;
+            this._correctSpan.textContent = correct;
+        }
+
+        set totalQuestions(total)
+        {
+            this._totalQuestions = total;
+            this._totalSpan.textContent = total;
+            this._progressWheel.maxValue = total;
+        }
+
+        get correctQuestions()
+        {
+            return this._correctQuestions;
+        }
+
+        get totalQuestions()
+        {
+            return this._totalQuestions;
+        }
+    }
+
+    customElements.define("level-complete-overlay", LevelCompleteOverlay);
+})();
+</script>
