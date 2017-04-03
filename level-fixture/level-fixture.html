@@ -113,7 +113,7 @@
 				
 			this._levelSlot.addEventListener("slotchange", () => {
 				this._levelSlot.assignedNodes().forEach((item) => {
-					if (item.isLevel)
+					if (item.isLevel && !getEventListeners(item)["question-answered"])
 					{
 						item.setAttribute("stage", "level");
 						item.addEventListener("question-answered", this._handleAnsweredQuestion.bind(this));
