@@ -113,10 +113,12 @@
 				
 			this._levelSlot.addEventListener("slotchange", () => {
 				this._levelSlot.assignedNodes().forEach((item) => {
-					if (item.isLevel && !getEventListeners(item)["question-answered"])
+                    // ListenerAttached is a property that we add that says we're already listening for question-answered
+					if (item.isLevel && !item.listenerAttached)
 					{
 						item.setAttribute("stage", "level");
 						item.addEventListener("question-answered", this._handleAnsweredQuestion.bind(this));
+						item.listenerAttached = true;
 					}
 				});
 			});
