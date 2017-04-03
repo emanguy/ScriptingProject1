@@ -79,7 +79,7 @@
             let index = 0;
 
             this._clocks.forEach((clock) => {
-                clock.hour = Math.ceil(Math.random() * 12);
+                clock.hour = Math.floor(Math.random() * 12);
                 clock.minute = Math.floor(Math.random() * 60);
 
                 if (clock.hour > maxHour)
