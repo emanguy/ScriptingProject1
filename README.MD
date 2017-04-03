@@ -4,6 +4,8 @@ _[Youtube Video](https://youtu.be/-2rDyiZGWP8)_
 
 _Evan Rittenhouse - eritte2 at umbc dot edu - Lead programmer/designer_
 
+_This page best viewed on [GitHub](github.com/emanguy/ScriptingProject1)_
+
 **You can access timR by opening index.html.**
 
 timR is a modular single page webapp that allows children to practice reading analog clocks. It defines many custom HTML elements and reuses them all over the place. This modularity makes the site easily modifiable, updatable, and readable. All of the code in this project is written by Evan Rittenhouse and the only external stuff that was added are the font files in `shared-styles/fonts/`.
