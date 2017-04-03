@@ -75,12 +75,7 @@ class ShadowDOMElement extends HTMLElement
 
 			// When children are attached, select the chosen page
 			this._slot.addEventListener("slotchange", () => {
-				let selectedChild = this._getSelectedChild(this.page);
-
-				if (selectedChild)
-				{
-					selectedChild.classList.add("chosenPage");
-				}
+				this._selectInitialPage();
 			});
 		}
 
@@ -100,6 +95,11 @@ class ShadowDOMElement extends HTMLElement
 			if (!this.hasAttribute("ignore-switch-request"))
 			{
 				this._slot.addEventListener("page-switch", this._handleSwitchRequest.bind(this));
+			}
+
+			if (this._slot.assignedNodes().length > 1)
+			{
+				this._selectInitialPage();
 			}
 		}
 
@@ -145,6 +145,16 @@ class ShadowDOMElement extends HTMLElement
 				{
 					this._pageTransition(newSelector);
 				}
+			}
+		}
+
+		_selectInitialPage()
+		{
+			let selectedChild = this._getSelectedChild(this.page);
+
+			if (selectedChild)
+			{
+				selectedChild.classList.add("chosenPage");
 			}
 		}
 
@@ -555,7 +565,7 @@ class Page extends ShadowDOMElement
 
 		connectedCallback()
 		{
-			this._startButton.addEventListener("click", () => this.switchPageTo("level-1"));
+			this._startButton.addEventListener("click", () => this.switchPageTo("name-entry"));
 		}
 
 		enteredCallback()
@@ -573,6 +583,71 @@ class Page extends ShadowDOMElement
 })();
 </script>
 <!--
+    name-entry-page
+
+    This page is where someone will enter their name to have their scores associated with them.
+    When the "OK" button is clicked, it will fire a "name-entered" event, with the event's detail
+    property containing the name.
+-->
+<template id="name-entry-page">
+    <style>
+        @import url("shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            width: 100%;
+            height: 100%;
+            color: white;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            font-family: 'Catamaran', sans-serif;
+            font-size: 40px;
+        }
+    </style>
+
+    <p>What is your name?</p>
+    <div>
+        <input type="text">
+        <button>OK</button>
+    </div>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class NameEntryPage extends Page
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#name-entry-page"));
+
+            this._textInput = this.shadowRoot.querySelector("input[type='text']");
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("button").addEventListener("click", this._handleNameEntry.bind(this));
+        }
+
+        enteredCallback()
+        {
+            this._textInput.value = "";
+        }
+
+        _handleNameEntry()
+        {
+            this.dispatchEvent(new CustomEvent("name-entered", { detail: this._textInput.value}));
+            this.switchPageTo("level-1");
+        }
+    }
+
+    customElements.define("name-entry-page", NameEntryPage);
+})();
+</script><!--
 	overlay-container
 	
 	This element provides a backdrop and enclosing container for dialog boxes.
@@ -1134,6 +1209,11 @@ Displays a radial progress bar which can fit text in its center.
 	 the level result overlay. It also listens for the enclosed level to fire "question-answered" events.
 
 	 To add instructions, be sure to give the tag the slot="instructions" attribute/value pair.
+
+	 Upon completion, this element fires a "completed" event whose detail property contains the following properties:
+	  * levelName: The name of the current level
+	  * questionsCorrect: The number of questions answered correctly
+	  * questionsTotal: The total number of questions
 -->
 <template id="level-fixture">
 	<style>
@@ -1280,6 +1360,7 @@ Displays a radial progress bar which can fit text in its center.
 			// Dismissing the level complete overlay will transition to the next level
 			this._lcoContainer.addEventListener("dismissed", (event) => {
 				this.dispatchEvent(new CustomEvent("completed", { detail: {
+                    levelName: this.levelName,
 					questionsCorrect: this._correctQuestions,
 					questionsTotal: this._numQuestions
 				} }));
@@ -1709,12 +1790,583 @@ customElements.define("level-1", Level1);
 
     customElements.define("level-3", Level3);
 })();
+</script><template id="level-4">
+    <style>
+        @import url("shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            font-family: 'Catamaran', sans-serif;
+            font-size: 40px;
+        }
+
+        div
+        {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+        }
+
+        svg-clock
+        {
+            --svg-clock-color: white;
+        }
+    </style>
+
+    <h1>Select the clock that says <span id="hour"></span>:<span id="minute"></span></h1>
+
+    <div>
+        <button id="buttonOne">
+            <svg-clock id="clockOne"></svg-clock>
+        </button>
+        <button id="buttonTwo">
+            <svg-clock id="clockTwo"></svg-clock>
+        </button>
+        <button id="buttonThree">
+            <svg-clock id="clockThree"></svg-clock>
+        </button>
+    </div>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class Level4 extends LevelElement
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#level-4"));
+
+            this._clocks = [
+                this.shadowRoot.querySelector("#clockOne"),
+                this.shadowRoot.querySelector("#clockTwo"),
+                this.shadowRoot.querySelector("#clockThree")
+            ];
+            this._hourSpan = this.shadowRoot.querySelector("#hour");
+            this._minuteSpan = this.shadowRoot.querySelector("#minute");
+
+            this._correctClock = 0;
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("#buttonOne").addEventListener("click", () => this._handleClockClick(0));
+            this.shadowRoot.querySelector("#buttonTwo").addEventListener("click", () => this._handleClockClick(1));
+            this.shadowRoot.querySelector("#buttonThree").addEventListener("click", () => this._handleClockClick(2));
+        }
+
+        nextQuestion()
+        {
+            this._clocks.forEach((clock) => {
+                clock.hour = Math.ceil(Math.random() * 12);
+                clock.minute = Math.floor(Math.random() * 60);
+            });
+            this._correctClock = Math.floor(Math.random() * 3);
+
+            this._hourSpan.textContent = this._clocks[this._correctClock].hour;
+            this._minuteSpan.textContent = this._formatMinute(this._clocks[this._correctClock].minute);
+        }
+
+        _handleClockClick(index)
+        {
+            if (index == this._correctClock)
+            {
+                this._questionAnswered(true);
+            }
+            else
+            {
+                let clock = `clock ${this._correctClock + 1}`;
+                this._questionAnswered(false, clock);
+            }
+        }
+    }
+
+    customElements.define("level-4", Level4);
+})();
+</script><template id="level-5">
+    <style>
+        @import url("shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            font-family: 'Catamaran', sans-serif;
+            font-size: 40px;
+        }
+
+        div
+        {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+        }
+
+        svg-clock
+        {
+            --svg-clock-color: white;
+        }
+    </style>
+
+    <h1>Select the clock with the latest time.</h1>
+
+    <div>
+        <button id="buttonOne">
+            <svg-clock id="clockOne"></svg-clock>
+        </button>
+        <button id="buttonTwo">
+            <svg-clock id="clockTwo"></svg-clock>
+        </button>
+        <button id="buttonThree">
+            <svg-clock id="clockThree"></svg-clock>
+        </button>
+    </div>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class Level5 extends LevelElement
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#level-5"));
+
+            this._correctButton = 0;
+            this._clocks = [
+                this.shadowRoot.querySelector("#clockOne"),
+                this.shadowRoot.querySelector("#clockTwo"),
+                this.shadowRoot.querySelector("#clockThree")
+            ];
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("#buttonOne").addEventListener("click", () => this._handleButtonClick(0));
+            this.shadowRoot.querySelector("#buttonTwo").addEventListener("click", () => this._handleButtonClick(1));
+            this.shadowRoot.querySelector("#buttonThree").addEventListener("click", () => this._handleButtonClick(2));
+        }
+
+        nextQuestion()
+        {
+            let maxHour = 0;
+            let maxMinute = 0;
+            let index = 0;
+
+            this._clocks.forEach((clock) => {
+                clock.hour = Math.ceil(Math.random() * 12);
+                clock.minute = Math.floor(Math.random() * 60);
+
+                if (clock.hour > maxHour)
+                {
+                    maxHour = clock.hour;
+                    maxMinute = clock.minute;
+                    this._correctButton = index;
+                }
+                else if (clock.hour == maxHour && clock.minute > maxMinute)
+                {
+                    maxHour = clock.hour;
+                    maxMinute = clock.minute;
+                    this._correctButton = index;
+                }
+                else if (clock.hour == maxHour && clock.minute == maxMinute) // Two clocks are the same -- fix
+                {
+                    clock.minute = clock.minute - 1;
+                }
+
+                index += 1;
+            });
+        }
+
+        _handleButtonClick(button)
+        {
+            if (button == this._correctButton)
+            {
+                this._questionAnswered(true);
+            }
+            else
+            {
+                let correctClock = `clock ${this._correctButton + 1}`;
+                this._questionAnswered(false, correctClock);
+            }
+        }
+    }
+
+    customElements.define("level-5", Level5);
+})();
+</script><!--
+    levels-complete-page
+
+    This page just shows a congratulations message for completing all the levels.
+-->
+<template id="levels-complete-page">
+    <style>
+        @import url("shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: flex;
+            contain: content;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            color: white;
+            font-family: 'Catamaran', sans-serif;
+            font-size: 30px;
+        }
+
+        h1
+        {
+            font-family: 'Pacifico', cursive;
+            animation: 2s pulse infinite;
+        }
+
+        @keyframes pulse {
+            0% {transform: scale(1.0, 1.0);}
+            50% {transform: scale(2.5, 2.5);}
+            100% {transform: scale(1.0, 1.0);}
+        }
+    </style>
+
+    <h1>Congratulations!</h1>
+    
+    <p>You completed all of the levels! Give yourself a pat on the back.</p>
+
+    <button>Back to Main Menu</button>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class LevelsCompletePage extends Page
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#levels-complete-page"));
+        }
+
+        connectedCallback()
+        {
+            this.shadowRoot.querySelector("button").addEventListener("click", () => this.switchPageTo("main"));
+        }
+    }
+
+    customElements.define("levels-complete-page", LevelsCompletePage);
+})();
+</script><template id="results-page">
+    <style>
+        @import url("shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: block;
+            contain: content;
+            width: 100%;
+            height: 100%;
+            font-family: 'Catamaran', sans-serif;
+            color: white;
+            overflow-x: wrap;
+            overflow-y: scroll;
+            padding: 10px;
+        }
+
+        .divider
+        {
+            height: 0px;
+            border: 2px solid white;
+            border-radius: 2px;
+        }
+
+        h3
+        {
+            font-size: 30px;
+        }
+
+        progress-wheel
+        {
+            --progress-wheel-overlay-color: #422910;
+        }
+
+        progress-wheel > *
+        {
+            text-align: center;
+        }
+
+        table
+        {
+            border-color: #422910;
+            width: 100%;
+        }
+
+        td
+        {
+            text-align: center;
+        }
+    </style>
+
+    <h3>Student Progress</h3>
+
+    <div></div>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class ResultsPage extends Page
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#results-page"));
+
+            this._results = this.shadowRoot.querySelector("div");
+            this.scores = {};
+        }
+
+        // Clear previous results, add DOM to reflect scores attribute
+        enteredCallback()
+        {
+            this._clearResults();
+
+            let setValueList = [];
+
+            Object.keys(this.scores).forEach((child) => {
+                // Add a divider before each result
+                let divider = document.createElement("div");
+                divider.classList.add("divider");
+                this._results.appendChild(divider);
+
+                // Add the child's name
+                let childName = document.createElement("h4");
+                childName.textContent = child;
+                this._results.appendChild(childName);
+
+                // Build a table with the level name and progress wheels to show progress
+                let resultsTable = document.createElement("table");
+                let levelTitles = resultsTable.insertRow();
+                let levelStats = resultsTable.insertRow();
+
+                Object.keys(this.scores[child]).forEach((levelName) => {
+                    levelTitles.insertCell().textContent = levelName;
+
+                    let stats = levelStats.insertCell();
+                    let progressWheel = document.createElement("progress-wheel");
+                    progressWheel.maxValue = this.scores[child][levelName][1];
+                    setValueList.push(() => progressWheel.value = this.scores[child][levelName][0]);
+                    progressWheel.textContent = `${this.scores[child][levelName][0]} / ${this.scores[child][levelName][1]} correct`;
+                    stats.appendChild(progressWheel);
+                });
+
+                this._results.appendChild(resultsTable);
+            });
+
+            // Once all the DOM is attached, set the values on the progress wheels so they all animate together
+            window.setTimeout(() => setValueList.forEach((setterFunction) => setterFunction()), 100);
+        }
+
+        _clearResults()
+        {
+            while (this._results.firstChild)
+            {
+                this._results.removeChild(this._results.firstChild);
+            }
+        }
+    }
+
+    customElements.define("results-page", ResultsPage);
+})();
+</script><!-- 
+    teacher-stats-overlay
+
+    A loosely password-protected overlay which shows how well each student does on the program.
+
+    Attributes:
+     * teacher-password: The password required for a teacher to see the scores. Default "learningIsCool"
+
+    Properties:
+     * teacherPassword: Same as the attribute.
+
+     Methods:
+      * updateScores(scores): Pass an object of the format
+        ```json
+        {
+            "student 1 name": {
+                "level name": [ correct, total ],
+                "another level name": [ correct, total],
+                ...
+            },
+            "student 2 name": {
+                "level name": [ correct, total ],
+                ...
+            },
+            ...
+        }
+        ```
+        which describes how well each student did. This format allows for students exiting the game early and the
+        updating of scores for a level if it is reattempted.
+-->
+<template id="teacher-stats-overlay">
+    <style>
+        @import url("shared-styles/shared-styles.css");
+
+        :host
+        {
+            display: block;
+            contain: content;
+            background-color: #422910;
+            color: white;
+            width: 80%;
+            height: 80%;
+            font-size: 20px;
+            box-shadow: black 0px 5px 15px;
+        }
+
+        page-switcher
+        {
+            width: 100%;
+            height: 100%;
+        }
+
+        div.centerAllTheThings
+        {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+        }
+
+        input
+        {
+            margin: 5px;
+        }
+
+        input[type="password"].incorrect
+        {
+            border-color: #ff1b1b;
+        }
+    </style>
+
+        <page-switcher page="password" selector-attribute="page-name">
+            <div page-name="password" class="centerAllTheThings">
+                <label for="passwordInput">Password:</label>
+                <input id="passwordInput" type="password">
+                <button>Submit</button>
+            </div>
+            <results-page page-name="results">Content will go here shortly</results-page>
+        </page-switcher>
+</template>
+
+<script type="text/javascript">
+(function() {
+    var thisDocument = document.currentScript.ownerDocument;
+
+    class TeacherStatsOverlay extends OverlayElement
+    {
+        constructor()
+        {
+            super(thisDocument.querySelector("#teacher-stats-overlay"));
+
+            this._passwordInput = this.shadowRoot.querySelector("#passwordInput");
+            this._resultsPage = this.shadowRoot.querySelector("results-page");
+            this._pageSwitcher = this.shadowRoot.querySelector("page-switcher");
+            this._teacherPassword = "";
+
+            this._shakeKeyframes = [ 
+                {transform: "translateX(0px)"},
+                {transform: "translateX(-10px)", offset: 0.2},
+                {transform: "translateX(10px)", offset: 0.4},
+                {transform: "translateX(-10px)", offset: 0.6},
+                {transform: "translateX(10px)", offset: 0.8},
+                {transform: "translateX(0px)"}
+            ];
+            this._shakeTiming = {
+                duration: 750,
+                easing: "ease"
+            };
+        }
+
+        connectedCallback()
+        {
+            if (this.hasAttribute("teacher-password"))
+            {
+                this._teacherPassword = this.getAttribute("teacher-password");
+            }
+            else
+            {
+                this._teacherPassword = "learningIsCool";
+            }
+
+            this.shadowRoot.querySelector("button").addEventListener("click", () => this._testPassword());
+            this._passwordInput.addEventListener("keyup", (event) => {
+                if (event.key == "Enter")
+                {
+                    event.preventDefault();
+                    this._testPassword();
+                }
+            });
+        }
+
+        dismissedCallback()
+        {
+            this._pageSwitcher.page = "password";
+            this._passwordInput.value = "";
+            this._passwordInput.classList.remove("incorrect");
+        }
+
+        set teacherPassword(password)
+        {
+            this._teacherPassword = password;
+        }
+
+        updateScores(scores)
+        {
+            this._resultsPage.scores = scores;
+        }
+
+        _testPassword()
+        {
+            if (this._passwordInput.value == this._teacherPassword)
+            {
+                this._pageSwitcher.page = "results";
+            }
+            else
+            {
+                this._passwordInput.classList.add("incorrect");
+                this._passwordInput.animate(this._shakeKeyframes, this._shakeTiming);
+            }
+            this._passwordInput.value = "";
+        }
+    }
+
+    customElements.define("teacher-stats-overlay", TeacherStatsOverlay);
+})();
 </script></div>
 		<div class="viewportContainer">
 
 			<main class="fillspace">
 				<page-switcher id="contentSwitch" page="main" selector-attribute="page-name" animated-transition="">
 					<main-page page-name="main"></main-page>
+					<name-entry-page page-name="name-entry"></name-entry-page>
 					<level-fixture page-name="level-1" level-name="Level 1" next-page="level-2" num-questions="5">
                         <p slot="instructions">Select the hour that matches the time on the clock.</p>
 						<level-1></level-1>
@@ -1724,25 +2376,36 @@ customElements.define("level-1", Level1);
 						<p slot="instructions">You can choose the tens place and ones place of the minute.</p>
 						<level-2></level-2>
 					</level-fixture>
-					<level-fixture page-name="level-3" level-name="Level 3" next-page="main" num-questions="5">
+					<level-fixture page-name="level-3" level-name="Level 3" next-page="level-4" num-questions="5">
 						<p slot="instructions">This time we're <b>turning it up a notch.</b></p>
 						<p slot="instructions">Select both the hour and minute that is displayed on the clock.</p>
 						<level-3></level-3>
 					</level-fixture>
-					<!--<level-fixture page-name="level-4" level-name="Level 4" next-page="main" num-questions="5">
+					<level-fixture page-name="level-4" level-name="Level 4" next-page="level-5" num-questions="5">
 						<p slot="instructions">Now we're gonna flip it around.</p>
 						<p slot="instructions">Select the clock that shows the listed time.</p>
 						<level-4></level-4>
-					</level-fixture>-->
+					</level-fixture>
+					<level-fixture page-name="level-5" level-name="Level 5 - The Final Challenge" next-page="end" num-questions="5">
+						<p slot="instructions">Select the clock that shows the latest time.</p>
+						<level-5></level-5>
+					</level-fixture>
+					<levels-complete-page page-name="end"></levels-complete-page>
 				</page-switcher>
 			</main>
 
 			<footer>
 				<h3 class="logo">timR</h3>
 				<div class="fillspace"></div>
-				<button>Teacher Login</button>
+				<button>View Student Progress</button>
 			</footer>
+
+			<overlay-container background-dismiss="">
+				<teacher-stats-overlay teacher-password="knowledgeIsPower"></teacher-stats-overlay>
+			</overlay-container>
 		</div>
+
+		<script defer="" type="text/javascript" src="index-script.js"></script>
 	
 
 </body></html>
