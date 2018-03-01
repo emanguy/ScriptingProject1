@@ -16,59 +16,96 @@
 	<style>
 		:host
 		{
-			display: inline-block;
-		}
-
-		svg, g
-		{
 			width: var(--svg-clock-size, 300px);
 			height: var(--svg-clock-size, 300px);
+			display: inline-block;
+			contain: content;
 		}
 
-		.color
-		{
-			stroke: var(--svg-clock-color, black);
+		:host > * {
+			position: absolute;
 		}
 
-		.color.fill
-		{
-			fill: var(--svg-clock-color, black);
+		div#clockFace {
+			width: 90%;
+			height: 90%;
+			top: 5%;
+			left: 5%;
+			border: 5px solid var(--svg-clock-color, black);
+			border-radius: 50%;
+
+			/* Add some negative margin to compensate for border taking up space. Left margin is the magic number for some reason. */
+			margin-top: -5px;
+			margin-left: -3px;
+		}
+
+		div#handsPin {
+			left: 50%;
+			top: 50%;
+			width: 5%;
+			height: 5%;
+			transform: translate(-50%, -50%);
+			background-color: var(--svg-clock-color, black);
+			border-radius: 50%;
 		}
 
 		.notch
 		{
-			transform-origin: 0% 0%;
+			display: inline;
+			transform-origin: top center;
+			width: 0%;
+			height: 3%;
+			border: 2px solid var(--svg-clock-color, black);
+			top: 5%;
+			left: 50%;
+		}
+
+		.notch.long
+		{
+			height: 6%;
 		}
 
 		.hand
 		{
-			transform-origin: 100% 100%;
+			transform-origin: top center;
 			transition: transform 0.5s;
+			width: 0%;
+			height: 25%;
+			border: 2px solid var(--svg-clock-color, black);
+			top: 50%;
+			left: 50%;
+			margin: -1.5px;
+			transform: rotate(180deg);
 		}
 
-		text
+		.hand.hour
 		{
-			text-anchor: middle;
-			alignment-baseline: middle;
+			height: 15%;
+			border: 4px solid var(--svg-clock-color, black);
+			margin: -3px;
+			left: calc(50% - 2px);
+		}
+
+		p
+		{
+			margin: 0px;
+			font-weight: bold;
+			color: var(--svg-clock-color, black);
+			font-size: 18pt;
+			transform-origin: center center;
+			top: 18%;
+			left: 50%;
+			transform: translate(-50%, -50%);
 		}
 	</style>
 
-	<svg id="svgRoot">
-		<circle class="color" fill="rgba(0,0,0,0)" stroke-width="5px" cx="50%" cy="50%" r="45%" />
-
-		<g id="notches">
-			<line id="twelveNotch" class="color notch" x1="50%" y1="5%" x2="50%" y2="15%" stroke-width="3px" />
-		</g>
-
-		<g id="hands">
-			<line id="minuteHand" class="color hand" x1="50%" y1="20%" x2="50%" y2="50%" stroke-linecap="round" stroke-width="5px" />
-			<line id="hourHand" class="color hand" x1="50%" y1="35%" x2="50%" y2="50%" stroke-linecap="round" stroke-width="7px" />
-		</g>
-
-		<g id="numbers">
-			<text id="firstNum" class="color fill" font-size="25pt" text-anchor="middle" x="50%" y="22%">12</text>
-		</g>
-	</svg>
+	<div id="clockFace"></div>
+	<div id="twelveNotch" class="notch"></div>
+	<p id="firstNum">12</p>
+	<div id="minuteHand" class="hand"></div>
+	<div id="hourHand" class="hand hour"></div>
+	<div id="handsPin"></div>
+	
 </template>
 
 <script type="text/javascript">
@@ -84,8 +121,6 @@
 			this._minute = 0;
 			this._hour = 0;
 
-			let group = this.shadowRoot.querySelector("#notches");
-			let numberGroup = this.shadowRoot.querySelector("#numbers");
 			let firstNotch = this.shadowRoot.querySelector("#twelveNotch");
 			let firstNumber = this.shadowRoot.querySelector("#firstNum");
 
@@ -97,38 +132,36 @@
 				let yPos = 50 - 45 * Math.cos(rotation);
 				let clonedLine = firstNotch.cloneNode(false);
 
-				clonedLine.setAttribute("x1", xPos + "%");
-				clonedLine.setAttribute("y1", yPos + "%");
-				clonedLine.setAttribute("x2", xPos + "%");
+				clonedLine.style.left = `${xPos}%`;
+				clonedLine.style.top = `${yPos}%`;
 
 				if (i % 5 == 0)
 				{
-					clonedLine.setAttribute("y2", (yPos + 10) + "%");
+					clonedLine.classList.add("long");
 
-					let handXPos = 50 + 28 * Math.sin(rotation);
-					let handYPos = 50 - 28 * Math.cos(rotation);
 					let clonedNumber = firstNumber.cloneNode(false);
-					clonedNumber.innerHTML = "" + (i / 5);
-					clonedNumber.setAttribute("x", handXPos + "%");
-					clonedNumber.setAttribute("y", handYPos + "%");
+					clonedNumber.innerText = "" + (i / 5);
+					let numberXPos = 50 + 32 * Math.sin(rotation);
+					let numberYPos = 50 - 32 * Math.cos(rotation);
 
-					numberGroup.appendChild(clonedNumber);
-				}
-				else
-				{
-					clonedLine.setAttribute("y2", (yPos + 5) + "%");
+					clonedNumber.style.left = `${numberXPos}%`;
+					clonedNumber.style.top = `${numberYPos}%`;
+
+					this.shadowRoot.appendChild(clonedNumber);
 				}
 
 				clonedLine.style.transform = `rotate(${rotation}rad)`;
 
-				group.append(clonedLine);
+				this.shadowRoot.append(clonedLine);
 			}
+
+			firstNotch.classList.add("long");
 
 			// Define animations for the hands to spin
 			let minuteHand = this.shadowRoot.querySelector("#minuteHand");
 			let hourHand = this.shadowRoot.querySelector("#hourHand");
 
-			let keyframes = { transform: [ "rotate(0deg)", "rotate(360deg)" ] };
+			let keyframes = { transform: [ "rotate(-180deg)", "rotate(180deg)" ] };
 			let minuteTiming = { duration: 1000, iterations: Infinity };
 			let hourTiming = { duration: 12000, iterations: Infinity };
 
@@ -213,7 +246,7 @@
 		_updateMinuteHand()
 		{
 			let minuteHand = this.shadowRoot.querySelector("#minuteHand");
-			let rotation = this._minute * Math.PI / 30;
+			let rotation = this._minute * Math.PI / 30 + Math.PI;
 
 			minuteHand.style.transform = `rotate(${rotation}rad)`;
 		}
@@ -221,7 +254,7 @@
 		_updateHourHand()
 		{
 			let hourHand = this.shadowRoot.querySelector("#hourHand");
-			let rotation = this._hour * Math.PI / 6 + this._minute * Math.PI / 360;
+			let rotation = this._hour * Math.PI / 6 + this._minute * Math.PI / 360 + Math.PI;
 
 			hourHand.style.transform = `rotate(${rotation}rad)`;
 		}
